@@ -10,6 +10,8 @@ export default defineConfig(() => ({
     name: 'shared-types',
     watch: false,
     globals: true,
+    // Pure type declarations carry no runtime tests; don't fail the target.
+    passWithNoTests: true,
     environment: 'node',
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default'],
