@@ -10,7 +10,7 @@ notifications.
 
 Built as an [Nx](https://nx.dev) monorepo with **NestJS** (API) and **Angular** (web).
 
-[![CI](https://github.com/your-org/financehub/actions/workflows/ci.yml/badge.svg)](./.github/workflows/ci.yml)
+[![CI](https://github.com/luscanascimento/financial-system/actions/workflows/ci.yml/badge.svg)](./.github/workflows/ci.yml)
 [![Conventional Commits](https://img.shields.io/badge/commits-conventional-informational)](https://www.conventionalcommits.org)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
