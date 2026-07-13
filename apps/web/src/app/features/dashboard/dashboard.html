@@ -1,0 +1,77 @@
+<header class="fh-page-header">
+  <h1>Dashboard</h1>
+  <p class="fh-page-header__subtitle">
+    Welcome to FinanceHub — your personal finance command center.
+  </p>
+</header>
+
+<section class="fh-kpis" aria-label="Key metrics">
+  @for (kpi of kpis; track kpi.label) {
+    <mat-card appearance="outlined" class="fh-kpi">
+      <mat-card-content class="fh-kpi__content">
+        <div class="fh-kpi__icon"><mat-icon>{{ kpi.icon }}</mat-icon></div>
+        <div class="fh-kpi__text">
+          <span class="fh-kpi__label">{{ kpi.label }}</span>
+          <span class="fh-kpi__value">{{ kpi.value }}</span>
+          <span class="fh-kpi__trend">{{ kpi.trend }}</span>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  }
+</section>
+
+<div class="fh-panels">
+  <mat-card appearance="outlined" class="fh-panel">
+    <mat-card-header>
+      <mat-card-title>System status</mat-card-title>
+      <mat-card-subtitle>Live health of the API and its dependencies</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      @if (loading()) {
+        <div class="fh-skeleton" aria-hidden="true">
+          @for (row of [1, 2, 3, 4]; track row) {
+            <div class="fh-skeleton__row"></div>
+          }
+        </div>
+        <p class="fh-visually-hidden">Loading system status…</p>
+      } @else {
+        <div class="fh-status">
+          <mat-chip-set aria-label="Overall status">
+            <mat-chip [class.fh-chip--up]="overallUp()" [class.fh-chip--down]="!overallUp()">
+              <mat-icon matChipAvatar>{{ overallUp() ? 'check_circle' : 'error' }}</mat-icon>
+              {{ overallUp() ? 'All systems operational' : 'Degraded' }}
+            </mat-chip>
+          </mat-chip-set>
+
+          @if (dependencies().length) {
+            <ul class="fh-status__list">
+              @for (dep of dependencies(); track dep.key) {
+                <li class="fh-status__item">
+                  <mat-icon [class.fh-status__ok]="dep.up" [class.fh-status__down]="!dep.up">
+                    {{ dep.up ? 'check_circle' : 'cancel' }}
+                  </mat-icon>
+                  <span class="fh-status__name">{{ dep.key }}</span>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="fh-empty">No status details reported.</p>
+          }
+        </div>
+      }
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card appearance="outlined" class="fh-panel">
+    <mat-card-header>
+      <mat-card-title>Recent activity</mat-card-title>
+      <mat-card-subtitle>Your latest transactions will appear here</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="fh-empty-state">
+        <mat-icon>receipt_long</mat-icon>
+        <p>No activity yet. Once you add accounts and transactions, they'll show up here.</p>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>

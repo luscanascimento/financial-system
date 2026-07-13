@@ -1,18 +1,24 @@
 import { TestBed } from '@angular/core/testing';
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { provideRouter } from '@angular/router';
+
 import { App } from './app';
-import { NxWelcome } from './nx-welcome';
 
 describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [App, NxWelcome],
+      imports: [App],
+      providers: [provideRouter([]), provideNoopAnimations()],
     }).compileComponents();
   });
 
-  it('should render title', async () => {
+  it('renders the FinanceHub brand', () => {
     const fixture = TestBed.createComponent(App);
-    await fixture.whenStable();
+    fixture.detectChanges();
+
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Welcome web');
+    expect(compiled.querySelector('.fh-brand__name')?.textContent).toContain(
+      'FinanceHub',
+    );
   });
 });

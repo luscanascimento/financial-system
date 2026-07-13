@@ -1,1 +1,51 @@
-/* You can add global styles to this file, and also import other style files */
+@use '@angular/material' as mat;
+
+// Material 3 theme. Omitting an explicit `theme-type` generates system tokens
+// that respond to `color-scheme`, so toggling the `dark` class on <html>
+// switches the entire palette between light and dark.
+html {
+  color-scheme: light;
+
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$azure-palette,
+        tertiary: mat.$blue-palette,
+      ),
+      typography: Roboto,
+      density: 0,
+    )
+  );
+
+  &.dark {
+    color-scheme: dark;
+  }
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
+}
+
+// Toast / snackbar variants used by NotificationService.
+.fh-snackbar--success {
+  --mdc-snackbar-container-color: #2e7d32;
+  --mdc-snackbar-supporting-text-color: #fff;
+}
+
+.fh-snackbar--error {
+  --mdc-snackbar-container-color: #c62828;
+  --mdc-snackbar-supporting-text-color: #fff;
+}
+
+.fh-snackbar--info {
+  --mdc-snackbar-container-color: #1565c0;
+  --mdc-snackbar-supporting-text-color: #fff;
+}
