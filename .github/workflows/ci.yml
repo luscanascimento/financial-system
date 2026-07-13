@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  NODE_VERSION: 22
+
+jobs:
+  verify:
+    name: Lint · Test · Build · Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history so `nx affected` can diff against the base branch.
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm prisma:generate
+
+      - name: Set Nx SHAs
+        uses: nrwl/nx-set-shas@v4
+
+      - name: Format check
+        run: pnpm exec nx format:check
+
+      - name: Lint
+        run: pnpm exec nx affected -t lint --parallel=3
+
+      - name: Test
+        run: pnpm exec nx affected -t test --parallel=3
+
+      - name: Typecheck
+        run: pnpm exec nx affected -t typecheck --parallel=3
+
+      - name: Build
+        run: pnpm exec nx affected -t build --parallel=3
