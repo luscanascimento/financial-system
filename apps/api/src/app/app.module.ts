@@ -11,6 +11,8 @@ import { validateEnv } from '../config/env.validation';
 import { HealthModule } from '../health/health.module';
 import { PrismaModule } from '../infrastructure/prisma/prisma.module';
 import { RedisModule } from '../infrastructure/redis/redis.module';
+import { AuthModule } from '../modules/auth/auth.module';
+import { UsersModule } from '../modules/users/users.module';
 
 /**
  * Composition root. Wires global configuration, infrastructure (Prisma, Redis),
@@ -38,6 +40,8 @@ import { RedisModule } from '../infrastructure/redis/redis.module';
     PrismaModule,
     RedisModule,
     HealthModule,
+    AuthModule,
+    UsersModule,
   ],
   providers: [
     // Apply rate limiting globally; routes can opt out with @SkipThrottle().

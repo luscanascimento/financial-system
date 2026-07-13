@@ -7,6 +7,7 @@ import {
 } from '@nestjs/terminus';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
+import { Public } from '../modules/auth/decorators/public.decorator';
 import { DatabaseHealthIndicator } from './indicators/database.health';
 import { RedisHealthIndicator } from './indicators/redis.health';
 import { StorageHealthIndicator } from './indicators/storage.health';
@@ -19,6 +20,7 @@ import { StorageHealthIndicator } from './indicators/storage.health';
  * - `GET /api/health/ready` — readiness: are critical deps reachable?
  */
 @ApiTags('Health')
+@Public()
 @Controller('health')
 export class HealthController {
   private static readonly MAX_HEAP_BYTES = 512 * 1024 * 1024;

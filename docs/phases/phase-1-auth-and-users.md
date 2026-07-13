@@ -11,7 +11,11 @@ access + rotating refresh tokens (with reuse detection), Argon2 hashing, email
 verification, password reset, TOTP MFA, and OAuth (Google + GitHub) — plus the
 Angular auth UI and route protection.
 
-## Design decisions (proposed — confirm before execution)
+## Design decisions (confirmed)
+
+> Confirmed 2026-07-13: full Phase 1 scope; refresh token via **httpOnly cookie**
+> with the access token held in memory on the client (D3/D4 below).
+
 
 | # | Decision | Choice | Rationale |
 |---|----------|--------|-----------|

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import compression from 'compression';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 
 import { AppModule } from './app/app.module';
@@ -19,6 +20,7 @@ async function bootstrap(): Promise<void> {
   // Security & performance middleware.
   app.use(helmet());
   app.use(compression());
+  app.use(cookieParser());
   app.enableCors({ origin: corsOrigin, credentials: true });
 
   app.setGlobalPrefix(globalPrefix);

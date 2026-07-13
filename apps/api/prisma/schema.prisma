@@ -1,6 +1,7 @@
 // FinanceHub — Prisma schema
-// Phase 0 establishes the identity baseline. Subsequent phases extend this file
-// (auth credentials, accounts, transactions, budgets, …) via new migrations.
+// Phase 0 established the identity baseline. Phase 1 adds authentication:
+// credentials, rotating refresh-token sessions, OAuth identities, email/password
+// verification tokens and TOTP MFA recovery codes.
 
 generator client {
   provider = "prisma-client-js"
@@ -11,17 +12,102 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// Application user. Auth-specific fields (refresh tokens, OAuth identities,
-/// TOTP secrets) are introduced in Phase 1.
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Provider {
+  GOOGLE
+  GITHUB
+}
+
+enum TokenType {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+}
+
+/// Application user and identity root.
 model User {
   id            String   @id @default(uuid()) @db.Uuid
   email         String   @unique
   passwordHash  String?
   displayName   String
+  role          Role     @default(USER)
   emailVerified Boolean  @default(false)
+  mfaEnabled    Boolean  @default(false)
+  mfaSecret     String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  refreshTokens      RefreshToken[]
+  oauthAccounts      OAuthAccount[]
+  verificationTokens VerificationToken[]
+  mfaRecoveryCodes   MfaRecoveryCode[]
+
   @@index([email])
   @@map("users")
+}
+
+/// Hashed, rotating refresh tokens. Rotation + reuse detection is implemented
+/// via `familyId` (a whole family is revoked if a used token is replayed) and
+/// `replacedByTokenId` (audit chain of rotations).
+model RefreshToken {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @db.Uuid
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash         String    @unique
+  familyId          String    @db.Uuid
+  userAgent         String?
+  ipAddress         String?
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  replacedByTokenId String?   @db.Uuid
+  createdAt         DateTime  @default(now())
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+/// Federated identity linked to a local user (Google / GitHub).
+model OAuthAccount {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @db.Uuid
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider          Provider
+  providerAccountId String
+  createdAt         DateTime @default(now())
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("oauth_accounts")
+}
+
+/// Single-use, hashed tokens for email verification and password reset.
+model VerificationToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       TokenType
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@map("verification_tokens")
+}
+
+/// Hashed one-time recovery codes for TOTP MFA.
+model MfaRecoveryCode {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("mfa_recovery_codes")
 }
