@@ -1,0 +1,5 @@
+{
+  "*.{ts,tsx,js,mjs,cjs,html,scss,css,json,md,yml,yaml}": [
+    "nx format:write --uncommitted"
+  ]
+}
