@@ -1,0 +1,27 @@
+// FinanceHub — Prisma schema
+// Phase 0 establishes the identity baseline. Subsequent phases extend this file
+// (auth credentials, accounts, transactions, budgets, …) via new migrations.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Application user. Auth-specific fields (refresh tokens, OAuth identities,
+/// TOTP secrets) are introduced in Phase 1.
+model User {
+  id            String   @id @default(uuid()) @db.Uuid
+  email         String   @unique
+  passwordHash  String?
+  displayName   String
+  emailVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([email])
+  @@map("users")
+}
