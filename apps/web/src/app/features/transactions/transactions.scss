@@ -1,0 +1,47 @@
+.fh-tx-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+
+  mat-form-field {
+    flex: 1 1 180px;
+  }
+}
+
+.fh-tx-table {
+  width: 100%;
+}
+
+.fh-tx-table__amount-col {
+  text-align: right;
+}
+
+.fh-tx-table__desc {
+  font-weight: 500;
+}
+
+.fh-tx-table__installment {
+  margin-left: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.fh-tx-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+
+  &__info {
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.9rem;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+}

@@ -1,0 +1,244 @@
+<header class="fh-page-header">
+  <div>
+    <h1>Transactions</h1>
+    <p class="fh-page-header__subtitle">
+      Track income and expenses across your accounts.
+    </p>
+  </div>
+  <div class="fh-page-header__actions">
+    <button
+      mat-flat-button
+      color="primary"
+      type="button"
+      (click)="openCreate()"
+    >
+      <mat-icon>add</mat-icon>
+      New transaction
+    </button>
+  </div>
+</header>
+
+@if (formOpen()) {
+<mat-card appearance="outlined" class="fh-form-card">
+  <mat-card-content>
+    <form class="fh-form" [formGroup]="form" (ngSubmit)="save()">
+      <div class="fh-form__row">
+        <mat-form-field appearance="outline">
+          <mat-label>Account</mat-label>
+          <mat-select formControlName="accountId">
+            @for (account of accounts(); track account.id) {
+            <mat-option [value]="account.id">{{ account.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Type</mat-label>
+          <mat-select
+            formControlName="type"
+            (selectionChange)="onTypeChange($event.value)"
+          >
+            @for (t of flowTypes; track t.value) {
+            <mat-option [value]="t.value">{{ t.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Category</mat-label>
+          <mat-select formControlName="categoryId">
+            <mat-option [value]="''">Uncategorized</mat-option>
+            @for (category of formCategories(); track category.id) {
+            <mat-option [value]="category.id">{{ category.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Description</mat-label>
+        <input matInput formControlName="description" />
+      </mat-form-field>
+
+      <div class="fh-form__row">
+        <mat-form-field appearance="outline">
+          <mat-label>Amount</mat-label>
+          <input
+            matInput
+            type="number"
+            min="0"
+            step="0.01"
+            formControlName="amountMajor"
+          />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Date</mat-label>
+          <input matInput type="date" formControlName="date" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Installments</mat-label>
+          <input
+            matInput
+            type="number"
+            min="1"
+            step="1"
+            formControlName="installmentTotal"
+          />
+        </mat-form-field>
+      </div>
+
+      <div class="fh-form__actions">
+        <button mat-button type="button" (click)="cancel()">Cancel</button>
+        <button
+          mat-flat-button
+          color="primary"
+          type="submit"
+          [disabled]="saving()"
+        >
+          Create transaction
+        </button>
+      </div>
+    </form>
+  </mat-card-content>
+</mat-card>
+}
+
+<mat-card appearance="outlined" class="fh-form-card">
+  <mat-card-content>
+    <form
+      class="fh-tx-filters"
+      [formGroup]="filters"
+      (ngSubmit)="applyFilters()"
+    >
+      <mat-form-field appearance="outline">
+        <mat-label>Account</mat-label>
+        <mat-select formControlName="accountId">
+          <mat-option [value]="''">All accounts</mat-option>
+          @for (account of accounts(); track account.id) {
+          <mat-option [value]="account.id">{{ account.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Type</mat-label>
+        <mat-select formControlName="type">
+          <mat-option [value]="''">All types</mat-option>
+          @for (t of flowTypes; track t.value) {
+          <mat-option [value]="t.value">{{ t.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Search</mat-label>
+        <input matInput formControlName="search" />
+      </mat-form-field>
+
+      <button mat-flat-button color="primary" type="submit">
+        <mat-icon>search</mat-icon>
+        Apply
+      </button>
+    </form>
+  </mat-card-content>
+</mat-card>
+
+@if (loading()) {
+<div class="fh-spinner-overlay"><mat-spinner diameter="40" /></div>
+} @else if (transactions().length === 0) {
+<div class="fh-empty-state">
+  <mat-icon>receipt_long</mat-icon>
+  <p>No transactions found. Add one to start tracking your cash flow.</p>
+</div>
+} @else {
+<mat-card appearance="outlined">
+  <table mat-table [dataSource]="transactions()" class="fh-tx-table">
+    <ng-container matColumnDef="date">
+      <th mat-header-cell *matHeaderCellDef>Date</th>
+      <td mat-cell *matCellDef="let tx">{{ tx.date | date: 'mediumDate' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="description">
+      <th mat-header-cell *matHeaderCellDef>Description</th>
+      <td mat-cell *matCellDef="let tx">
+        <span class="fh-tx-table__desc">{{ tx.description }}</span>
+        @if (tx.installmentTotal && tx.installmentNumber) {
+        <span class="fh-tx-table__installment">
+          {{ tx.installmentNumber }}/{{ tx.installmentTotal }}
+        </span>
+        }
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="category">
+      <th mat-header-cell *matHeaderCellDef>Category</th>
+      <td mat-cell *matCellDef="let tx">{{ categoryName(tx.categoryId) }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="account">
+      <th mat-header-cell *matHeaderCellDef>Account</th>
+      <td mat-cell *matCellDef="let tx">{{ accountName(tx.accountId) }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="amount">
+      <th mat-header-cell *matHeaderCellDef class="fh-tx-table__amount-col">
+        Amount
+      </th>
+      <td mat-cell *matCellDef="let tx" class="fh-tx-table__amount-col">
+        <span
+          [class.fh-amount--income]="tx.type === 'INCOME'"
+          [class.fh-amount--expense]="tx.type === 'EXPENSE'"
+        >
+          {{ signedMinor(tx) | fhMoney: accountCurrency(tx.accountId) }}
+        </span>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef></th>
+      <td mat-cell *matCellDef="let tx" class="fh-tx-table__amount-col">
+        <button
+          mat-icon-button
+          type="button"
+          aria-label="Delete transaction"
+          (click)="remove(tx)"
+        >
+          <mat-icon>delete</mat-icon>
+        </button>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+  </table>
+</mat-card>
+
+@if (meta(); as m) {
+<div class="fh-tx-pagination">
+  <span class="fh-tx-pagination__info">
+    Page {{ m.page }} of {{ m.totalPages || 1 }} · {{ m.totalItems }} total
+  </span>
+  <div class="fh-tx-pagination__actions">
+    <button
+      mat-stroked-button
+      type="button"
+      [disabled]="!m.hasPreviousPage"
+      (click)="previousPage()"
+    >
+      <mat-icon>chevron_left</mat-icon>
+      Prev
+    </button>
+    <button
+      mat-stroked-button
+      type="button"
+      [disabled]="!m.hasNextPage"
+      (click)="nextPage()"
+    >
+      Next
+      <mat-icon iconPositionEnd>chevron_right</mat-icon>
+    </button>
+  </div>
+</div>
+} }

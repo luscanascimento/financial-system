@@ -1,64 +1,115 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import type { HealthCheckResponse } from '@financehub/shared-types';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import type {
+  CashFlowPoint,
+  CategoryBreakdownItem,
+  FinancialOverview,
+} from '@financehub/shared-types';
+import { forkJoin } from 'rxjs';
 
-import { HealthService } from '../../core/services/health.service';
+import { MoneyPipe } from '../../shared/money.pipe';
+import { DashboardService } from './dashboard.service';
 
 interface Kpi {
   readonly label: string;
-  readonly value: string;
+  readonly valueMinor: number;
   readonly icon: string;
-  readonly trend: string;
+  readonly amountClass: string;
 }
 
-interface DependencyStatus {
-  readonly key: string;
-  readonly up: boolean;
+/** A cash-flow point projected onto the SVG chart geometry. */
+interface CashFlowBar {
+  readonly label: string;
+  readonly incomeMinor: number;
+  readonly expenseMinor: number;
+  /** Bar heights in the chart's viewBox units (0–CHART_HEIGHT). */
+  readonly incomeHeight: number;
+  readonly expenseHeight: number;
 }
+
+const CHART_HEIGHT = 100;
 
 /**
- * Landing dashboard. In Phase 0 it demonstrates the end-to-end wiring —
- * signals, HTTP, loading/skeleton/error states — by rendering placeholder KPIs
- * and a live system-status panel fed by the API health endpoint. Real financial
- * data replaces the placeholders from Phase 5 onwards.
+ * Landing dashboard driven by the reports API: headline KPIs, an inline SVG
+ * cash-flow chart (income vs expense per month, no chart library) and a
+ * category-breakdown panel of horizontal bars.
  */
 @Component({
   selector: 'fh-dashboard',
-  imports: [
-    MatCardModule,
-    MatChipsModule,
-    MatIconModule,
-    MatProgressBarModule,
-  ],
+  imports: [MatCardModule, MatIconModule, MatProgressSpinnerModule, MoneyPipe],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
 export class Dashboard {
-  private readonly healthApi = inject(HealthService);
+  private readonly api = inject(DashboardService);
 
   protected readonly loading = signal(true);
-  protected readonly health = signal<HealthCheckResponse | null>(null);
+  protected readonly overview = signal<FinancialOverview | null>(null);
+  protected readonly cashFlow = signal<CashFlowPoint[]>([]);
+  protected readonly breakdown = signal<CategoryBreakdownItem[]>([]);
 
-  /** Placeholder KPIs — wired to real aggregates in later phases. */
-  protected readonly kpis: readonly Kpi[] = [
-    { label: 'Total balance', value: '$0.00', icon: 'account_balance', trend: 'Add an account to begin' },
-    { label: 'Income (30d)', value: '$0.00', icon: 'trending_up', trend: 'No transactions yet' },
-    { label: 'Expenses (30d)', value: '$0.00', icon: 'trending_down', trend: 'No transactions yet' },
-    { label: 'Savings rate', value: '—', icon: 'savings', trend: 'Awaiting data' },
-  ];
+  protected readonly chartHeight = CHART_HEIGHT;
 
-  protected readonly dependencies = computed<DependencyStatus[]>(() => {
-    const details = this.health()?.details ?? {};
-    return Object.entries(details).map(([key, value]) => ({
-      key,
-      up: value.status === 'up',
-    }));
+  protected readonly currency = computed(
+    () => this.overview()?.currency ?? 'USD',
+  );
+
+  protected readonly kpis = computed<Kpi[]>(() => {
+    const o = this.overview();
+    if (!o) {
+      return [];
+    }
+    return [
+      {
+        label: 'Total balance',
+        valueMinor: o.totalBalanceMinor,
+        icon: 'account_balance',
+        amountClass: '',
+      },
+      {
+        label: 'Income (this month)',
+        valueMinor: o.monthIncomeMinor,
+        icon: 'trending_up',
+        amountClass: 'fh-amount--income',
+      },
+      {
+        label: 'Expenses (this month)',
+        valueMinor: o.monthExpenseMinor,
+        icon: 'trending_down',
+        amountClass: 'fh-amount--expense',
+      },
+      {
+        label: 'Net (this month)',
+        valueMinor: o.monthNetMinor,
+        icon: 'savings',
+        amountClass:
+          o.monthNetMinor < 0 ? 'fh-amount--expense' : 'fh-amount--income',
+      },
+    ];
   });
 
-  protected readonly overallUp = computed(() => this.health()?.status === 'ok');
+  /** Peak income/expense across the window — used to scale the bar heights. */
+  private readonly cashFlowMax = computed(() =>
+    this.cashFlow().reduce(
+      (max, p) => Math.max(max, p.incomeMinor, p.expenseMinor),
+      0,
+    ),
+  );
+
+  protected readonly cashFlowBars = computed<CashFlowBar[]>(() => {
+    const max = this.cashFlowMax();
+    return this.cashFlow().map((p) => ({
+      label: new Date(p.period).toLocaleDateString(undefined, {
+        month: 'short',
+      }),
+      incomeMinor: p.incomeMinor,
+      expenseMinor: p.expenseMinor,
+      incomeHeight: max > 0 ? (p.incomeMinor / max) * CHART_HEIGHT : 0,
+      expenseHeight: max > 0 ? (p.expenseMinor / max) * CHART_HEIGHT : 0,
+    }));
+  });
 
   constructor() {
     this.load();
@@ -66,9 +117,18 @@ export class Dashboard {
 
   protected load(): void {
     this.loading.set(true);
-    this.healthApi.check().subscribe((result) => {
-      this.health.set(result);
-      this.loading.set(false);
+    forkJoin({
+      overview: this.api.overview(),
+      cashFlow: this.api.cashFlow(6),
+      breakdown: this.api.categoryBreakdown('EXPENSE'),
+    }).subscribe({
+      next: ({ overview, cashFlow, breakdown }) => {
+        this.overview.set(overview);
+        this.cashFlow.set(cashFlow);
+        this.breakdown.set(breakdown);
+        this.loading.set(false);
+      },
+      error: () => this.loading.set(false),
     });
   }
 }

@@ -1,0 +1,174 @@
+<header class="fh-page-header">
+  <div>
+    <h1>Goals</h1>
+    <p class="fh-page-header__subtitle">
+      Total saved:
+      <strong class="fh-amount">{{ totalSavedMinor() | fhMoney }}</strong>
+    </p>
+  </div>
+  <div class="fh-page-header__actions">
+    <button
+      mat-flat-button
+      color="primary"
+      type="button"
+      (click)="openCreate()"
+    >
+      <mat-icon>add</mat-icon>
+      New goal
+    </button>
+  </div>
+</header>
+
+@if (formOpen()) {
+<mat-card appearance="outlined" class="fh-form-card">
+  <mat-card-content>
+    <form class="fh-form" [formGroup]="form" (ngSubmit)="save()">
+      <mat-form-field appearance="outline">
+        <mat-label>Name</mat-label>
+        <input matInput formControlName="name" />
+      </mat-form-field>
+
+      <div class="fh-form__row">
+        <mat-form-field appearance="outline">
+          <mat-label>Target amount</mat-label>
+          <input matInput type="number" formControlName="targetAmountMajor" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Currency</mat-label>
+          <input matInput formControlName="currency" maxlength="3" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Target date (optional)</mat-label>
+          <input matInput type="date" formControlName="targetDate" />
+        </mat-form-field>
+      </div>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Account (optional)</mat-label>
+        <mat-select formControlName="accountId">
+          <mat-option [value]="''">None</mat-option>
+          @for (account of accounts(); track account.id) {
+          <mat-option [value]="account.id">{{ account.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <div class="fh-form__actions">
+        <button mat-button type="button" (click)="cancel()">Cancel</button>
+        <button
+          mat-flat-button
+          color="primary"
+          type="submit"
+          [disabled]="saving()"
+        >
+          {{ editingId() ? 'Save changes' : 'Create goal' }}
+        </button>
+      </div>
+    </form>
+  </mat-card-content>
+</mat-card>
+} @if (loading()) {
+<div class="fh-spinner-overlay"><mat-spinner diameter="40" /></div>
+} @else if (goals().length === 0) {
+<div class="fh-empty-state">
+  <mat-icon>flag</mat-icon>
+  <p>
+    No goals yet. Create your first savings goal to start tracking progress.
+  </p>
+</div>
+} @else {
+<section class="fh-grid">
+  @for (goal of goals(); track goal.id) {
+  <mat-card appearance="outlined" class="fh-goal-card">
+    <mat-card-content>
+      <div class="fh-goal-card__head">
+        <div class="fh-goal-card__title">
+          <span
+            class="fh-goal-card__icon"
+            [style.background]="goal.color || 'var(--mat-sys-primary)'"
+          >
+            <mat-icon>{{ goal.icon || 'flag' }}</mat-icon>
+          </span>
+          <h2 class="fh-goal-card__name">{{ goal.name }}</h2>
+        </div>
+        <button
+          mat-icon-button
+          type="button"
+          [matMenuTriggerFor]="menu"
+          aria-label="Goal actions"
+        >
+          <mat-icon>more_vert</mat-icon>
+        </button>
+        <mat-menu #menu="matMenu">
+          <button mat-menu-item type="button" (click)="openEdit(goal)">
+            <mat-icon>edit</mat-icon><span>Edit</span>
+          </button>
+          <button mat-menu-item type="button" (click)="remove(goal)">
+            <mat-icon>delete</mat-icon><span>Delete</span>
+          </button>
+        </mat-menu>
+      </div>
+
+      @if (goal.status === 'ACHIEVED') {
+      <span class="fh-goal-card__chip">
+        <mat-icon>check_circle</mat-icon>
+        ACHIEVED
+      </span>
+      }
+
+      <p class="fh-goal-card__amount fh-amount">
+        {{ goal.currentAmountMinor | fhMoney: goal.currency }}
+        <span class="fh-goal-card__target">
+          / {{ goal.targetAmountMinor | fhMoney: goal.currency }}
+        </span>
+      </p>
+
+      <mat-progress-bar
+        mode="determinate"
+        [value]="progress(goal)"
+        class="fh-goal-card__bar"
+      />
+
+      @if (contributeId() === goal.id) {
+      <form
+        class="fh-goal-card__contribute"
+        [formGroup]="contributionForm"
+        (ngSubmit)="contribute(goal)"
+      >
+        <mat-form-field appearance="outline">
+          <mat-label>Amount</mat-label>
+          <input matInput type="number" formControlName="amountMajor" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Note (optional)</mat-label>
+          <input matInput formControlName="note" />
+        </mat-form-field>
+        <div class="fh-form__actions">
+          <button mat-button type="button" (click)="cancelContribute()">
+            Cancel
+          </button>
+          <button
+            mat-flat-button
+            color="primary"
+            type="submit"
+            [disabled]="contributing()"
+          >
+            Add
+          </button>
+        </div>
+      </form>
+      } @else {
+      <div class="fh-goal-card__actions">
+        <button mat-stroked-button type="button" (click)="openContribute(goal)">
+          <mat-icon>add</mat-icon>
+          Contribute
+        </button>
+      </div>
+      }
+    </mat-card-content>
+  </mat-card>
+  }
+</section>
+}

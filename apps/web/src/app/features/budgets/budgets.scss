@@ -1,0 +1,40 @@
+.fh-budget-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.fh-budget-card__name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.fh-budget-card__cat {
+  margin: 0.1rem 0 0;
+  font-size: 0.85rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.fh-budget-card__spent {
+  margin: 0.75rem 0 0.5rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.fh-budget-card__of {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.fh-budget-card__bar {
+  border-radius: 4px;
+}
+
+.fh-budget-card__remaining {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+}

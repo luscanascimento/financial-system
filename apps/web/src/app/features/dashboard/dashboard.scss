@@ -1,17 +1,3 @@
-.fh-page-header {
-  margin-bottom: 1.5rem;
-
-  h1 {
-    margin: 0 0 0.25rem;
-    font-size: 1.75rem;
-  }
-
-  &__subtitle {
-    margin: 0;
-    opacity: 0.7;
-  }
-}
-
 .fh-kpis {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -38,6 +24,7 @@
 .fh-kpi__text {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .fh-kpi__label {
@@ -51,51 +38,124 @@
   line-height: 1.2;
 }
 
-.fh-kpi__trend {
-  font-size: 0.75rem;
-  opacity: 0.6;
-}
-
 .fh-panels {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 1rem;
 }
 
-.fh-status__list {
+// ─── Cash-flow SVG chart ─────────────────────────────────────────────────────
+
+.fh-chart {
+  margin-top: 0.5rem;
+}
+
+.fh-chart__svg {
+  display: block;
+  width: 100%;
+  height: 180px;
+}
+
+.fh-chart__bar--income {
+  fill: #2e7d32;
+}
+
+.fh-chart__bar--expense {
+  fill: #c62828;
+}
+
+.fh-chart__labels {
+  display: flex;
+  margin-top: 0.35rem;
+}
+
+.fh-chart__label {
+  flex: 1 1 0;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.fh-chart__legend {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.fh-chart__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.fh-chart__swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.fh-chart__swatch--income {
+  background: #2e7d32;
+}
+
+.fh-chart__swatch--expense {
+  background: #c62828;
+}
+
+// ─── Category breakdown ──────────────────────────────────────────────────────
+
+.fh-breakdown {
   list-style: none;
-  margin: 1rem 0 0;
+  margin: 0.5rem 0 0;
   padding: 0;
   display: grid;
-  gap: 0.5rem;
+  gap: 0.9rem;
 }
 
-.fh-status__item {
+.fh-breakdown__head {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
-  text-transform: capitalize;
+  margin-bottom: 0.3rem;
+  font-size: 0.9rem;
 }
 
-.fh-status__ok {
-  color: #2e7d32;
+.fh-breakdown__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.fh-status__down {
-  color: #c62828;
+.fh-breakdown__dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
 }
 
-.fh-chip--up {
-  --mdc-chip-label-text-color: #1b5e20;
+.fh-breakdown__amount {
+  flex: none;
+  font-weight: 600;
 }
 
-.fh-chip--down {
-  --mdc-chip-label-text-color: #b71c1c;
+.fh-breakdown__track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--mat-sys-surface-container-highest, rgb(0 0 0 / 0.08));
+  overflow: hidden;
 }
 
-.fh-empty,
-.fh-empty-state {
-  opacity: 0.7;
+.fh-breakdown__bar {
+  height: 100%;
+  border-radius: 4px;
+  min-width: 2px;
 }
 
 .fh-empty-state {
@@ -105,58 +165,11 @@
   text-align: center;
   gap: 0.5rem;
   padding: 1.5rem 0;
+  color: var(--mat-sys-on-surface-variant);
 
   mat-icon {
     font-size: 2.5rem;
     width: 2.5rem;
     height: 2.5rem;
   }
-}
-
-/* Skeleton loading placeholders */
-.fh-skeleton {
-  display: grid;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
-}
-
-.fh-skeleton__row {
-  height: 1.25rem;
-  border-radius: 6px;
-  background: linear-gradient(
-    90deg,
-    rgb(0 0 0 / 0.06) 25%,
-    rgb(0 0 0 / 0.12) 37%,
-    rgb(0 0 0 / 0.06) 63%
-  );
-  background-size: 400% 100%;
-  animation: fh-shimmer 1.4s ease infinite;
-}
-
-:host-context(html.dark) .fh-skeleton__row {
-  background: linear-gradient(
-    90deg,
-    rgb(255 255 255 / 0.06) 25%,
-    rgb(255 255 255 / 0.14) 37%,
-    rgb(255 255 255 / 0.06) 63%
-  );
-  background-size: 400% 100%;
-}
-
-@keyframes fh-shimmer {
-  0% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0 50%;
-  }
-}
-
-.fh-visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
 }

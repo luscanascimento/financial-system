@@ -49,3 +49,174 @@ body {
   --mdc-snackbar-container-color: #1565c0;
   --mdc-snackbar-supporting-text-color: #fff;
 }
+
+// ─── Shared layout utilities ─────────────────────────────────────────────────
+// Reused by every feature page so component stylesheets stay tiny and the app
+// keeps a consistent rhythm.
+
+.fh-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+
+  h1 {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 600;
+  }
+
+  &__subtitle {
+    margin: 0.25rem 0 0;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  &__actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+}
+
+.fh-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+.fh-grid--wide {
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+}
+
+.fh-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: min(420px, 78vw);
+
+  mat-form-field {
+    width: 100%;
+  }
+}
+
+.fh-form__row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+
+  mat-form-field {
+    flex: 1 1 160px;
+  }
+}
+
+.fh-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.fh-form-card {
+  margin-bottom: 1.5rem;
+}
+
+.fh-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: var(--mat-sys-on-surface-variant);
+
+  mat-icon {
+    font-size: 2.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+}
+
+.fh-amount--income {
+  color: #2e7d32;
+  font-variant-numeric: tabular-nums;
+}
+
+.fh-amount--expense {
+  color: #c62828;
+  font-variant-numeric: tabular-nums;
+}
+
+.fh-amount {
+  font-variant-numeric: tabular-nums;
+}
+
+.fh-spinner-overlay {
+  display: flex;
+  justify-content: center;
+  padding: 3rem;
+}
+
+.fh-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+// ─── Auth pages ──────────────────────────────────────────────────────────────
+
+.fh-auth {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 1.5rem;
+  background: var(--mat-sys-surface-container-low);
+}
+
+.fh-auth__card {
+  width: 100%;
+  max-width: 420px;
+}
+
+.fh-auth__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.fh-auth__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  mat-form-field {
+    width: 100%;
+  }
+}
+
+.fh-auth__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.fh-auth__links {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}

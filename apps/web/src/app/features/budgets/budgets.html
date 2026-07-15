@@ -1,0 +1,149 @@
+<header class="fh-page-header">
+  <div>
+    <h1>Budgets</h1>
+    <p class="fh-page-header__subtitle">
+      Spent
+      <strong class="fh-amount">{{ totalSpentMinor() | fhMoney }}</strong>
+      of
+      <strong class="fh-amount">{{ totalAmountMinor() | fhMoney }}</strong>
+    </p>
+  </div>
+  <div class="fh-page-header__actions">
+    <button
+      mat-flat-button
+      color="primary"
+      type="button"
+      (click)="openCreate()"
+    >
+      <mat-icon>add</mat-icon>
+      New budget
+    </button>
+  </div>
+</header>
+
+@if (formOpen()) {
+<mat-card appearance="outlined" class="fh-form-card">
+  <mat-card-content>
+    <form class="fh-form" [formGroup]="form" (ngSubmit)="save()">
+      <mat-form-field appearance="outline">
+        <mat-label>Name</mat-label>
+        <input matInput formControlName="name" />
+      </mat-form-field>
+
+      <div class="fh-form__row">
+        <mat-form-field appearance="outline">
+          <mat-label>Category (optional)</mat-label>
+          <mat-select formControlName="categoryId">
+            <mat-option [value]="''">All categories</mat-option>
+            @for (c of categories(); track c.id) {
+            <mat-option [value]="c.id">{{ c.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Amount</mat-label>
+          <input matInput type="number" formControlName="amountMajor" />
+        </mat-form-field>
+      </div>
+
+      <div class="fh-form__row">
+        <mat-form-field appearance="outline">
+          <mat-label>Period</mat-label>
+          <mat-select formControlName="period">
+            @for (p of budgetPeriods; track p.value) {
+            <mat-option [value]="p.value">{{ p.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Start date</mat-label>
+          <input
+            matInput
+            [matDatepicker]="picker"
+            formControlName="startDate"
+          />
+          <mat-datepicker-toggle matIconSuffix [for]="picker" />
+          <mat-datepicker #picker />
+        </mat-form-field>
+      </div>
+
+      <div class="fh-form__actions">
+        <button mat-button type="button" (click)="cancel()">Cancel</button>
+        <button
+          mat-flat-button
+          color="primary"
+          type="submit"
+          [disabled]="saving()"
+        >
+          {{ editingId() ? 'Save changes' : 'Create budget' }}
+        </button>
+      </div>
+    </form>
+  </mat-card-content>
+</mat-card>
+} @if (loading()) {
+<div class="fh-spinner-overlay"><mat-spinner diameter="40" /></div>
+} @else if (budgets().length === 0) {
+<div class="fh-empty-state">
+  <mat-icon>savings</mat-icon>
+  <p>No budgets yet. Create a budget to keep your spending on track.</p>
+</div>
+} @else {
+<section class="fh-grid fh-grid--wide">
+  @for (budget of budgets(); track budget.id) {
+  <mat-card appearance="outlined" class="fh-budget-card">
+    <mat-card-content>
+      <div class="fh-budget-card__head">
+        <div>
+          <h2 class="fh-budget-card__name">{{ budget.name }}</h2>
+          <p class="fh-budget-card__cat">
+            {{ categoryName(budget.categoryId) ?? 'All categories' }}
+          </p>
+        </div>
+        <button
+          mat-icon-button
+          type="button"
+          [matMenuTriggerFor]="menu"
+          aria-label="Budget actions"
+        >
+          <mat-icon>more_vert</mat-icon>
+        </button>
+        <mat-menu #menu="matMenu">
+          <button mat-menu-item type="button" (click)="openEdit(budget)">
+            <mat-icon>edit</mat-icon><span>Edit</span>
+          </button>
+          <button mat-menu-item type="button" (click)="remove(budget)">
+            <mat-icon>delete</mat-icon><span>Delete</span>
+          </button>
+        </mat-menu>
+      </div>
+
+      <p class="fh-budget-card__spent fh-amount">
+        {{ budget.spentMinor | fhMoney }}
+        <span class="fh-budget-card__of"
+          >/ {{ budget.amountMinor | fhMoney }}</span
+        >
+      </p>
+
+      <mat-progress-bar
+        class="fh-budget-card__bar"
+        mode="determinate"
+        [value]="barValue(budget.ratio)"
+        [color]="budget.ratio > 1 ? 'warn' : 'primary'"
+      />
+
+      <p
+        class="fh-budget-card__remaining"
+        [class.fh-amount--expense]="budget.remainingMinor < 0"
+        [class.fh-amount--income]="budget.remainingMinor >= 0"
+      >
+        @if (budget.remainingMinor >= 0) { {{ budget.remainingMinor | fhMoney }}
+        remaining } @else { {{ -budget.remainingMinor | fhMoney }} over budget }
+      </p>
+    </mat-card-content>
+  </mat-card>
+  }
+</section>
+}

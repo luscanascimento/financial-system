@@ -12,13 +12,11 @@ describe('App', () => {
     }).compileComponents();
   });
 
-  it('renders the FinanceHub brand', () => {
+  it('hosts the routed outlet', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.fh-brand__name')?.textContent).toContain(
-      'FinanceHub',
-    );
+    expect(compiled.querySelector('router-outlet')).not.toBeNull();
   });
 });

@@ -1,77 +1,132 @@
 <header class="fh-page-header">
-  <h1>Dashboard</h1>
-  <p class="fh-page-header__subtitle">
-    Welcome to FinanceHub — your personal finance command center.
-  </p>
+  <div>
+    <h1>Dashboard</h1>
+    <p class="fh-page-header__subtitle">
+      Your personal finance command center.
+    </p>
+  </div>
 </header>
 
+@if (loading()) {
+<div class="fh-spinner-overlay"><mat-spinner diameter="40" /></div>
+} @else {
 <section class="fh-kpis" aria-label="Key metrics">
-  @for (kpi of kpis; track kpi.label) {
-    <mat-card appearance="outlined" class="fh-kpi">
-      <mat-card-content class="fh-kpi__content">
-        <div class="fh-kpi__icon"><mat-icon>{{ kpi.icon }}</mat-icon></div>
-        <div class="fh-kpi__text">
-          <span class="fh-kpi__label">{{ kpi.label }}</span>
-          <span class="fh-kpi__value">{{ kpi.value }}</span>
-          <span class="fh-kpi__trend">{{ kpi.trend }}</span>
-        </div>
-      </mat-card-content>
-    </mat-card>
+  @for (kpi of kpis(); track kpi.label) {
+  <mat-card appearance="outlined" class="fh-kpi">
+    <mat-card-content class="fh-kpi__content">
+      <div class="fh-kpi__icon"><mat-icon>{{ kpi.icon }}</mat-icon></div>
+      <div class="fh-kpi__text">
+        <span class="fh-kpi__label">{{ kpi.label }}</span>
+        <span class="fh-kpi__value fh-amount" [class]="kpi.amountClass">
+          {{ kpi.valueMinor | fhMoney: currency() }}
+        </span>
+      </div>
+    </mat-card-content>
+  </mat-card>
   }
 </section>
 
 <div class="fh-panels">
   <mat-card appearance="outlined" class="fh-panel">
     <mat-card-header>
-      <mat-card-title>System status</mat-card-title>
-      <mat-card-subtitle>Live health of the API and its dependencies</mat-card-subtitle>
+      <mat-card-title>Cash flow</mat-card-title>
+      <mat-card-subtitle>Income vs expenses, last 6 months</mat-card-subtitle>
     </mat-card-header>
     <mat-card-content>
-      @if (loading()) {
-        <div class="fh-skeleton" aria-hidden="true">
-          @for (row of [1, 2, 3, 4]; track row) {
-            <div class="fh-skeleton__row"></div>
-          }
-        </div>
-        <p class="fh-visually-hidden">Loading system status…</p>
+      @if (cashFlowBars().length === 0) {
+      <div class="fh-empty-state">
+        <mat-icon>bar_chart</mat-icon>
+        <p>No cash-flow data yet.</p>
+      </div>
       } @else {
-        <div class="fh-status">
-          <mat-chip-set aria-label="Overall status">
-            <mat-chip [class.fh-chip--up]="overallUp()" [class.fh-chip--down]="!overallUp()">
-              <mat-icon matChipAvatar>{{ overallUp() ? 'check_circle' : 'error' }}</mat-icon>
-              {{ overallUp() ? 'All systems operational' : 'Degraded' }}
-            </mat-chip>
-          </mat-chip-set>
-
-          @if (dependencies().length) {
-            <ul class="fh-status__list">
-              @for (dep of dependencies(); track dep.key) {
-                <li class="fh-status__item">
-                  <mat-icon [class.fh-status__ok]="dep.up" [class.fh-status__down]="!dep.up">
-                    {{ dep.up ? 'check_circle' : 'cancel' }}
-                  </mat-icon>
-                  <span class="fh-status__name">{{ dep.key }}</span>
-                </li>
-              }
-            </ul>
-          } @else {
-            <p class="fh-empty">No status details reported.</p>
+      <div class="fh-chart">
+        <svg
+          class="fh-chart__svg"
+          [attr.viewBox]="'0 0 ' + cashFlowBars().length * 40 + ' ' + chartHeight"
+          preserveAspectRatio="none"
+          role="img"
+          aria-label="Monthly income and expense bar chart"
+        >
+          @for (bar of cashFlowBars(); track bar.label; let i = $index) {
+          <rect
+            class="fh-chart__bar fh-chart__bar--income"
+            [attr.x]="i * 40 + 6"
+            [attr.y]="chartHeight - bar.incomeHeight"
+            [attr.width]="13"
+            [attr.height]="bar.incomeHeight"
+          >
+            <title>{{ bar.incomeMinor | fhMoney: currency() }} income</title>
+          </rect>
+          <rect
+            class="fh-chart__bar fh-chart__bar--expense"
+            [attr.x]="i * 40 + 21"
+            [attr.y]="chartHeight - bar.expenseHeight"
+            [attr.width]="13"
+            [attr.height]="bar.expenseHeight"
+          >
+            <title>{{ bar.expenseMinor | fhMoney: currency() }} expense</title>
+          </rect>
+          }
+        </svg>
+        <div class="fh-chart__labels">
+          @for (bar of cashFlowBars(); track bar.label) {
+          <span class="fh-chart__label">{{ bar.label }}</span>
           }
         </div>
+        <div class="fh-chart__legend">
+          <span class="fh-chart__legend-item">
+            <span class="fh-chart__swatch fh-chart__swatch--income"></span
+            >Income
+          </span>
+          <span class="fh-chart__legend-item">
+            <span class="fh-chart__swatch fh-chart__swatch--expense"></span
+            >Expenses
+          </span>
+        </div>
+      </div>
       }
     </mat-card-content>
   </mat-card>
 
   <mat-card appearance="outlined" class="fh-panel">
     <mat-card-header>
-      <mat-card-title>Recent activity</mat-card-title>
-      <mat-card-subtitle>Your latest transactions will appear here</mat-card-subtitle>
+      <mat-card-title>Spending by category</mat-card-title>
+      <mat-card-subtitle>Expenses this month</mat-card-subtitle>
     </mat-card-header>
     <mat-card-content>
+      @if (breakdown().length === 0) {
       <div class="fh-empty-state">
-        <mat-icon>receipt_long</mat-icon>
-        <p>No activity yet. Once you add accounts and transactions, they'll show up here.</p>
+        <mat-icon>pie_chart</mat-icon>
+        <p>No spending recorded yet.</p>
       </div>
+      } @else {
+      <ul class="fh-breakdown">
+        @for (item of breakdown(); track item.categoryId ?? item.categoryName) {
+        <li class="fh-breakdown__item">
+          <div class="fh-breakdown__head">
+            <span class="fh-breakdown__name">
+              <span
+                class="fh-breakdown__dot"
+                [style.background]="item.color || 'var(--mat-sys-primary)'"
+              ></span>
+              {{ item.categoryName }}
+            </span>
+            <span class="fh-breakdown__amount fh-amount">
+              {{ item.amountMinor | fhMoney: currency() }}
+            </span>
+          </div>
+          <div class="fh-breakdown__track">
+            <div
+              class="fh-breakdown__bar"
+              [style.width.%]="item.ratio * 100"
+              [style.background]="item.color || 'var(--mat-sys-primary)'"
+            ></div>
+          </div>
+        </li>
+        }
+      </ul>
+      }
     </mat-card-content>
   </mat-card>
 </div>
+}

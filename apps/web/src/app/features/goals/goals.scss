@@ -1,0 +1,82 @@
+.fh-goal-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.fh-goal-card__title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.fh-goal-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  color: #fff;
+  flex: 0 0 auto;
+}
+
+.fh-goal-card__name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fh-goal-card__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.75rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #2e7d32;
+  background: rgba(46, 125, 50, 0.12);
+
+  mat-icon {
+    font-size: 1rem;
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+.fh-goal-card__amount {
+  margin: 0.75rem 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.fh-goal-card__target {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.fh-goal-card__bar {
+  border-radius: 999px;
+}
+
+.fh-goal-card__actions {
+  margin-top: 0.75rem;
+}
+
+.fh-goal-card__contribute {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.75rem;
+
+  mat-form-field {
+    width: 100%;
+  }
+}

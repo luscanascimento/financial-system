@@ -1,0 +1,33 @@
+.fh-account-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.fh-account-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  color: #fff;
+}
+
+.fh-account-card__name {
+  margin: 0.5rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.fh-account-card__inst {
+  margin: 0.1rem 0 0;
+  font-size: 0.85rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.fh-account-card__balance {
+  margin: 0.75rem 0 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+}

@@ -1,36 +1,50 @@
-import { HttpInterceptorFn } from '@angular/common/http';
+import {
+  HttpErrorResponse,
+  HttpInterceptorFn,
+  HttpRequest,
+} from '@angular/common/http';
+import { inject } from '@angular/core';
+import { catchError, switchMap, throwError } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
+import { AuthService } from '../services/auth.service';
 
-const ACCESS_TOKEN_KEY = 'financehub.accessToken';
+const AUTH_FREE_PATHS = ['/auth/login', '/auth/register', '/auth/refresh'];
 
 /**
- * Attaches the bearer access token to outbound API requests when present.
- *
- * Phase 0 wires the plumbing; the token store and refresh flow are implemented
- * in Phase 1 (Auth). Only same-origin API calls are decorated so third-party
- * requests never receive our credentials.
+ * Attaches the in-memory bearer access token to API requests and transparently
+ * recovers from expiry: on a 401 it performs a single refresh (rotating the
+ * httpOnly cookie), then retries the original request once with the new token.
+ * Requests to the auth endpoints are never retried, preventing refresh loops.
  */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const isApiRequest = req.url.startsWith(environment.apiBaseUrl);
-  if (!isApiRequest) {
+  const auth = inject(AuthService);
+  if (!req.url.startsWith(environment.apiBaseUrl)) {
     return next(req);
   }
 
-  const token = readAccessToken();
-  if (!token) {
-    return next(req);
-  }
-
-  return next(
-    req.clone({ setHeaders: { Authorization: `Bearer ${token}` } }),
+  return next(withBearer(req, auth.getAccessToken())).pipe(
+    catchError((error: unknown) => {
+      const isAuthFree = AUTH_FREE_PATHS.some((p) => req.url.includes(p));
+      if (
+        error instanceof HttpErrorResponse &&
+        error.status === 401 &&
+        !isAuthFree
+      ) {
+        return auth
+          .refresh()
+          .pipe(switchMap(() => next(withBearer(req, auth.getAccessToken()))));
+      }
+      return throwError(() => error);
+    }),
   );
 };
 
-function readAccessToken(): string | null {
-  try {
-    return localStorage.getItem(ACCESS_TOKEN_KEY);
-  } catch {
-    return null;
-  }
+function withBearer(
+  req: HttpRequest<unknown>,
+  token: string | null,
+): HttpRequest<unknown> {
+  return token
+    ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
+    : req;
 }

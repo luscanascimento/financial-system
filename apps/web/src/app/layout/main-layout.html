@@ -1,0 +1,73 @@
+<mat-sidenav-container class="fh-shell">
+  <mat-sidenav
+    class="fh-sidenav"
+    [opened]="opened()"
+    mode="side"
+    [disableClose]="true"
+  >
+    <a class="fh-brand" routerLink="/dashboard">
+      <mat-icon aria-hidden="true">account_balance_wallet</mat-icon>
+      <span class="fh-brand__name">FinanceHub</span>
+    </a>
+
+    <mat-nav-list>
+      @for (item of nav; track item.path) {
+      <a
+        mat-list-item
+        [routerLink]="item.path"
+        routerLinkActive="fh-nav--active"
+      >
+        <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+        <span matListItemTitle>{{ item.label }}</span>
+      </a>
+      }
+    </mat-nav-list>
+  </mat-sidenav>
+
+  <mat-sidenav-content class="fh-shell__content">
+    <mat-toolbar class="fh-topbar">
+      <button
+        mat-icon-button
+        type="button"
+        aria-label="Toggle navigation"
+        (click)="toggleSidenav()"
+      >
+        <mat-icon>menu</mat-icon>
+      </button>
+
+      <span class="fh-topbar__spacer"></span>
+
+      <button
+        mat-icon-button
+        type="button"
+        [matTooltip]="isDark() ? 'Switch to light mode' : 'Switch to dark mode'"
+        (click)="toggleTheme()"
+      >
+        <mat-icon>{{ isDark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
+      </button>
+
+      <button
+        mat-button
+        type="button"
+        [matMenuTriggerFor]="accountMenu"
+        class="fh-account-button"
+      >
+        <span class="fh-avatar" aria-hidden="true">{{ initials() }}</span>
+        <span class="fh-account-name">{{ user()?.displayName }}</span>
+      </button>
+      <mat-menu #accountMenu="matMenu">
+        <div class="fh-account-email" mat-menu-item disabled>
+          {{ user()?.email }}
+        </div>
+        <button mat-menu-item type="button" (click)="logout()">
+          <mat-icon>logout</mat-icon>
+          <span>Sign out</span>
+        </button>
+      </mat-menu>
+    </mat-toolbar>
+
+    <main class="fh-content">
+      <router-outlet></router-outlet>
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>
