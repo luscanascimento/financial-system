@@ -11,7 +11,17 @@ import { validateEnv } from '../config/env.validation';
 import { HealthModule } from '../health/health.module';
 import { PrismaModule } from '../infrastructure/prisma/prisma.module';
 import { RedisModule } from '../infrastructure/redis/redis.module';
+import { AccountSecurityModule } from '../modules/account-security/account-security.module';
+import { AccountsModule } from '../modules/accounts/accounts.module';
 import { AuthModule } from '../modules/auth/auth.module';
+import { BudgetsModule } from '../modules/budgets/budgets.module';
+import { CategoriesModule } from '../modules/categories/categories.module';
+import { GoalsModule } from '../modules/goals/goals.module';
+import { MailModule } from '../modules/mail/mail.module';
+import { RecurringModule } from '../modules/recurring/recurring.module';
+import { ReportsModule } from '../modules/reports/reports.module';
+import { TransactionsModule } from '../modules/transactions/transactions.module';
+import { TransfersModule } from '../modules/transfers/transfers.module';
 import { UsersModule } from '../modules/users/users.module';
 
 /**
@@ -40,8 +50,18 @@ import { UsersModule } from '../modules/users/users.module';
     PrismaModule,
     RedisModule,
     HealthModule,
+    MailModule,
     AuthModule,
     UsersModule,
+    AccountSecurityModule,
+    AccountsModule,
+    CategoriesModule,
+    TransactionsModule,
+    TransfersModule,
+    RecurringModule,
+    BudgetsModule,
+    GoalsModule,
+    ReportsModule,
   ],
   providers: [
     // Apply rate limiting globally; routes can opt out with @SkipThrottle().

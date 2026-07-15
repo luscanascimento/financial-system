@@ -27,6 +27,53 @@ enum TokenType {
   PASSWORD_RESET
 }
 
+/// Kind of money movement. Shared by categories and transactions so an
+/// "expense" category can only classify expense transactions.
+enum FlowType {
+  INCOME
+  EXPENSE
+}
+
+/// The financial nature of an account. Drives balance semantics (e.g. a
+/// CREDIT_CARD tracks a negative available balance against a credit limit).
+enum AccountType {
+  CHECKING
+  SAVINGS
+  CREDIT_CARD
+  CASH
+  WALLET
+  INVESTMENT
+}
+
+/// Whether a transaction has settled. PENDING amounts still affect the running
+/// balance but are surfaced separately in reports.
+enum TransactionStatus {
+  PENDING
+  CLEARED
+}
+
+/// Rolling window a budget is evaluated over.
+enum BudgetPeriod {
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+/// Cadence at which a recurring transaction template spawns transactions.
+enum RecurrenceFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+/// Lifecycle of a savings goal.
+enum GoalStatus {
+  ACTIVE
+  ACHIEVED
+  ARCHIVED
+}
+
 /// Application user and identity root.
 model User {
   id            String   @id @default(uuid()) @db.Uuid
@@ -44,6 +91,14 @@ model User {
   oauthAccounts      OAuthAccount[]
   verificationTokens VerificationToken[]
   mfaRecoveryCodes   MfaRecoveryCode[]
+
+  accounts               Account[]
+  categories             Category[]
+  transactions           Transaction[]
+  transfers              Transfer[]
+  budgets                Budget[]
+  goals                  Goal[]
+  recurringTransactions  RecurringTransaction[]
 
   @@index([email])
   @@map("users")
@@ -110,4 +165,234 @@ model MfaRecoveryCode {
 
   @@index([userId])
   @@map("mfa_recovery_codes")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Financial domain
+//
+// All monetary values are stored as a signed integer number of **minor units**
+// (e.g. cents) in the account's currency, mirroring `@financehub/shared-utils`
+// `money` helpers. A `balanceMinor` is maintained transactionally by the
+// transactions/transfers services so account balances never drift.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A place money lives: bank account, credit card, cash, wallet or investment.
+model Account {
+  id               String      @id @default(uuid()) @db.Uuid
+  userId           String      @db.Uuid
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  type             AccountType
+  currency         String      @default("USD")
+  /// Running balance in minor units, maintained by the ledger services.
+  balanceMinor     Int         @default(0)
+  /// Opening balance captured at creation (used to rebuild the balance).
+  initialBalanceMinor Int      @default(0)
+  /// Credit limit for CREDIT_CARD accounts, in minor units.
+  creditLimitMinor Int?
+  institution      String?
+  color            String?
+  icon             String?
+  archived         Boolean     @default(false)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  transactions          Transaction[]
+  transfersFrom         Transfer[]             @relation("TransferFromAccount")
+  transfersTo           Transfer[]             @relation("TransferToAccount")
+  goals                 Goal[]
+  recurringTransactions RecurringTransaction[]
+
+  @@index([userId])
+  @@index([userId, archived])
+  @@map("accounts")
+}
+
+/// A user-defined classification for income or expense. Supports one level of
+/// nesting via `parentId` (e.g. "Food" → "Groceries").
+model Category {
+  id        String     @id @default(uuid()) @db.Uuid
+  userId    String     @db.Uuid
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  type      FlowType
+  parentId  String?    @db.Uuid
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Category[] @relation("CategoryTree")
+  color     String?
+  icon      String?
+  /// System-provided default categories seeded for every user.
+  system    Boolean    @default(false)
+  archived  Boolean    @default(false)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  transactions          Transaction[]
+  budgets               Budget[]
+  recurringTransactions RecurringTransaction[]
+
+  @@unique([userId, name, type, parentId])
+  @@index([userId])
+  @@index([userId, type])
+  @@map("categories")
+}
+
+/// A single income or expense entry against an account. Transfers between the
+/// user's own accounts are modelled separately (see {@link Transfer}).
+model Transaction {
+  id          String            @id @default(uuid()) @db.Uuid
+  userId      String            @db.Uuid
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId   String            @db.Uuid
+  account     Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  categoryId  String?           @db.Uuid
+  category    Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  type        FlowType
+  /// Always a positive amount in minor units; `type` gives the direction.
+  amountMinor Int
+  description String
+  notes       String?
+  date        DateTime
+  status      TransactionStatus @default(CLEARED)
+
+  /// When set, this row is one leg of an installment purchase.
+  installmentGroupId String? @db.Uuid
+  installmentNumber  Int?
+  installmentTotal   Int?
+
+  /// The recurring template that generated this row, if any.
+  recurringTransactionId String?               @db.Uuid
+  recurringTransaction   RecurringTransaction? @relation(fields: [recurringTransactionId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([accountId])
+  @@index([categoryId])
+  @@index([userId, date])
+  @@index([installmentGroupId])
+  @@map("transactions")
+}
+
+/// A movement of money between two of the user's own accounts. Kept out of the
+/// income/expense ledger so it never distorts cash-flow reports. Supports
+/// cross-currency transfers via distinct from/to amounts.
+model Transfer {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @db.Uuid
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromAccountId String   @db.Uuid
+  fromAccount   Account  @relation("TransferFromAccount", fields: [fromAccountId], references: [id], onDelete: Cascade)
+  toAccountId   String   @db.Uuid
+  toAccount     Account  @relation("TransferToAccount", fields: [toAccountId], references: [id], onDelete: Cascade)
+  /// Amount debited from the source account, in its minor units.
+  fromAmountMinor Int
+  /// Amount credited to the destination account, in its minor units (equal to
+  /// `fromAmountMinor` for same-currency transfers).
+  toAmountMinor   Int
+  description   String?
+  date          DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([fromAccountId])
+  @@index([toAccountId])
+  @@index([userId, date])
+  @@map("transfers")
+}
+
+/// A spending cap for a category (or overall when `categoryId` is null) over a
+/// recurring period. Actual spend is computed from transactions on read.
+model Budget {
+  id          String       @id @default(uuid()) @db.Uuid
+  userId      String       @db.Uuid
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId  String?      @db.Uuid
+  category    Category?    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name        String
+  amountMinor Int
+  period      BudgetPeriod @default(MONTHLY)
+  /// Anchor date the recurring period is computed from.
+  startDate   DateTime
+  /// Carry unused budget into the next period.
+  rollover    Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([userId])
+  @@index([categoryId])
+  @@map("budgets")
+}
+
+/// A savings target the user funds over time via contributions.
+model Goal {
+  id                String     @id @default(uuid()) @db.Uuid
+  userId            String     @db.Uuid
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name              String
+  targetAmountMinor Int
+  /// Maintained from the sum of contributions.
+  currentAmountMinor Int       @default(0)
+  currency          String     @default("USD")
+  targetDate        DateTime?
+  /// Optional account earmarked to fund this goal.
+  accountId         String?    @db.Uuid
+  account           Account?   @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  color             String?
+  icon              String?
+  status            GoalStatus @default(ACTIVE)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  contributions GoalContribution[]
+
+  @@index([userId])
+  @@map("goals")
+}
+
+/// A single deposit toward a goal.
+model GoalContribution {
+  id          String   @id @default(uuid()) @db.Uuid
+  goalId      String   @db.Uuid
+  goal        Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  amountMinor Int
+  date        DateTime
+  note        String?
+  createdAt   DateTime @default(now())
+
+  @@index([goalId])
+  @@map("goal_contributions")
+}
+
+/// A template that spawns transactions on a schedule (subscriptions, salary,
+/// rent, …). The scheduler advances `nextRunDate` after each generation.
+model RecurringTransaction {
+  id          String              @id @default(uuid()) @db.Uuid
+  userId      String              @db.Uuid
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId   String              @db.Uuid
+  account     Account             @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  categoryId  String?             @db.Uuid
+  category    Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  type        FlowType
+  amountMinor Int
+  description String
+  frequency   RecurrenceFrequency
+  /// Every N periods (e.g. interval 2 + MONTHLY = every two months).
+  interval    Int                 @default(1)
+  startDate   DateTime
+  nextRunDate DateTime
+  endDate     DateTime?
+  active      Boolean             @default(true)
+  lastRunAt   DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  transactions Transaction[]
+
+  @@index([userId])
+  @@index([active, nextRunDate])
+  @@map("recurring_transactions")
 }
