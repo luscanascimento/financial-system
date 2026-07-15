@@ -13,18 +13,18 @@ Ten feature modules under `apps/api/src/modules/`, all secured by the global
 `JwtAuthGuard` and scoped per user (a user can never read or mutate another
 user's rows — ownership failures return `404`):
 
-| Module | Route | Highlights |
-| ------ | ----- | ---------- |
-| `accounts` | `/api/accounts` | Checking/savings/credit/cash/wallet/investment; balance maintained transactionally |
-| `categories` | `/api/categories` | Hierarchical income/expense; flat or tree; default seeding |
-| `transactions` | `/api/transactions` | Income/expense ledger; filters + pagination; installment splitting; balance updates inside `prisma.$transaction` |
-| `transfers` | `/api/transfers` | Account-to-account (incl. cross-currency); excluded from cash-flow |
-| `recurring` | `/api/recurring-transactions` | Scheduled templates; `POST /run` generates due transactions |
-| `budgets` | `/api/budgets` | Per-category caps with computed period spend/progress |
-| `goals` | `/api/goals` | Savings goals + contributions; `ACHIEVED` transition |
-| `reports` | `/api/reports` | Overview KPIs, net worth, cash flow, category breakdown |
-| `mail` | — | Dev log transport (no SMTP dependency) |
-| `account-security` | `/api/auth/*`, `/api/auth/mfa/*` | Email verification, password reset, TOTP MFA (RFC 6238, zero new deps) + hashed recovery codes |
+| Module             | Route                            | Highlights                                                                                                       |
+| ------------------ | -------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `accounts`         | `/api/accounts`                  | Checking/savings/credit/cash/wallet/investment; balance maintained transactionally                               |
+| `categories`       | `/api/categories`                | Hierarchical income/expense; flat or tree; default seeding                                                       |
+| `transactions`     | `/api/transactions`              | Income/expense ledger; filters + pagination; installment splitting; balance updates inside `prisma.$transaction` |
+| `transfers`        | `/api/transfers`                 | Account-to-account (incl. cross-currency); excluded from cash-flow                                               |
+| `recurring`        | `/api/recurring-transactions`    | Scheduled templates; `POST /run` generates due transactions                                                      |
+| `budgets`          | `/api/budgets`                   | Per-category caps with computed period spend/progress                                                            |
+| `goals`            | `/api/goals`                     | Savings goals + contributions; `ACHIEVED` transition                                                             |
+| `reports`          | `/api/reports`                   | Overview KPIs, net worth, cash flow, category breakdown                                                          |
+| `mail`             | —                                | Dev log transport (no SMTP dependency)                                                                           |
+| `account-security` | `/api/auth/*`, `/api/auth/mfa/*` | Email verification, password reset, TOTP MFA (RFC 6238, zero new deps) + hashed recovery codes                   |
 
 **Money** is stored as signed integer **minor units** (cents) everywhere,
 mirroring `@financehub/shared-utils`' `money` helpers. Period math (budgets,

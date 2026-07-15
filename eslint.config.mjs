@@ -33,6 +33,10 @@ export default [
               onlyDependOnLibsWithTags: ['scope:api', 'scope:shared'],
             },
             {
+              sourceTag: 'scope:mcp',
+              onlyDependOnLibsWithTags: ['scope:mcp', 'scope:shared'],
+            },
+            {
               // Presentational UI must stay free of feature/domain logic.
               sourceTag: 'type:ui',
               onlyDependOnLibsWithTags: ['type:ui', 'type:util', 'type:types'],

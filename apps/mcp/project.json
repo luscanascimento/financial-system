@@ -1,0 +1,37 @@
+{
+  "name": "mcp",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/mcp/src",
+  "projectType": "application",
+  "tags": ["scope:mcp", "type:app"],
+  "targets": {
+    "build": {
+      "executor": "@nx/esbuild:esbuild",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "platform": "node",
+        "outputPath": "dist/apps/mcp",
+        "format": ["cjs"],
+        "bundle": true,
+        "thirdParty": false,
+        "main": "apps/mcp/src/main.ts",
+        "tsConfig": "apps/mcp/tsconfig.app.json",
+        "generatePackageJson": true,
+        "esbuildOptions": {
+          "sourcemap": true,
+          "banner": { "js": "#!/usr/bin/env node" }
+        }
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "node dist/apps/mcp/main.cjs"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}
