@@ -28,13 +28,17 @@ comprehensive testing, containerized infrastructure and CI/CD.
 | ------------- | -------------------------------------------------------------------------- |
 | **Backend**   | NestJS 11 · Clean Architecture · Prisma 6 · PostgreSQL · Redis · MinIO      |
 | **Frontend**  | Angular 21 · Standalone components · Signals · Angular Material · SCSS      |
-| **Auth**      | JWT + refresh rotation · Argon2 · OAuth (Google/GitHub) · TOTP MFA *(Phase 1)* |
+| **Auth**      | JWT + refresh rotation · Argon2 · TOTP MFA · email verify · password reset  |
+| **Domain**    | Accounts · Categories · Transactions · Transfers · Installments · Recurring · Budgets · Goals · Reports |
 | **Quality**   | Vitest · Supertest · Playwright · ESLint · Prettier · module boundaries    |
 | **Infra**     | Docker Compose · GitHub Actions · Swagger/OpenAPI                           |
 
-> **Status:** Phase 0 (Foundation) complete — runnable skeleton with the full
-> toolchain, infrastructure and a live dashboard. Feature phases follow the
-> [roadmap](#-roadmap).
+> **Status:** the full stack is functional end-to-end — authentication, the
+> complete financial domain API (accounts, transactions, transfers, budgets,
+> goals, reports) and an Angular SPA (dashboard, feature pages, auth flow). See
+> the [roadmap](#-roadmap) for what's done and what's next.
+
+**Demo login (after `pnpm db:seed`):** `demo@financehub.dev` / `Password123!`
 
 ---
 
@@ -151,13 +155,13 @@ API reference is auto-generated (Swagger/OpenAPI) at `/api/docs`.
 | Phase | Scope                                                                       | Status |
 | ----- | --------------------------------------------------------------------------- | ------ |
 | **0** | Foundation — monorepo, infra, Docker, CI, dashboard skeleton                | ✅ Done |
-| **1** | Auth & Users — register/login, JWT+refresh, Argon2, OAuth, MFA, email verify | ⏳ Next |
-| **2** | Accounts & Categories                                                        | 📋 Planned |
-| **3** | Transactions, transfers, installments, recurring, attachments                | 📋 Planned |
-| **4** | Budgets & Goals                                                              | 📋 Planned |
-| **5** | Reports & Dashboards (KPIs, charts, cash flow)                                | 📋 Planned |
-| **6** | Search, filtering, pagination, notifications, audit logs                     | 📋 Planned |
-| **7** | E2E hardening, deployment & final documentation                              | 📋 Planned |
+| **1** | Auth & Users — register/login, JWT+refresh, Argon2, MFA (TOTP), email verify, password reset | ✅ Done |
+| **2** | Accounts & Categories                                                        | ✅ Done |
+| **3** | Transactions, transfers, installments, recurring                             | ✅ Done |
+| **4** | Budgets & Goals                                                              | ✅ Done |
+| **5** | Reports & Dashboards (KPIs, charts, cash flow)                                | ✅ Done |
+| **6** | Search/filtering/pagination ✅ · notifications ✅ · audit logs                | ◐ Partial |
+| **7** | OAuth (Google/GitHub), attachments, E2E hardening & deployment               | 📋 Next |
 
 ---
 
