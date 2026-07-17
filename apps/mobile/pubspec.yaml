@@ -1,0 +1,35 @@
+name: financehub_mobile
+description: FinanceHub — Flutter client for the FinanceHub personal-finance API.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  # Flutter 3.27+ / Dart 3.6+ for the Material 3 APIs used here
+  # (Color.withValues, CardThemeData, surfaceContainer* roles).
+  sdk: ">=3.6.0 <4.0.0"
+  flutter: ">=3.27.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # State management.
+  flutter_riverpod: ^2.5.1
+  # HTTP + refresh-cookie handling (the API sets an httpOnly refresh cookie).
+  dio: ^5.7.0
+  cookie_jar: ^4.0.8
+  dio_cookie_manager: ^3.1.1
+  path_provider: ^2.1.5
+  # Secure persistence for the access token.
+  flutter_secure_storage: ^9.2.2
+  # Routing with an auth-aware redirect guard.
+  go_router: ^14.6.2
+  # Currency & date formatting (mirrors the web Intl.NumberFormat usage).
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
