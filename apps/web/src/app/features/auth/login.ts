@@ -66,8 +66,19 @@ export class Login {
       return;
     }
     this.notifications.success(`Welcome back, ${res.user.displayName}`);
-    const redirectTo =
-      this.route.snapshot.queryParamMap.get('redirectTo') ?? '/dashboard';
-    void this.router.navigateByUrl(redirectTo);
+    void this.router.navigateByUrl(this.safeRedirect());
+  }
+
+  /**
+   * Resolves the post-login redirect. Only same-origin, in-app relative paths
+   * are honoured — a crafted `?redirectTo=https://evil.example` (or
+   * protocol-relative `//evil`) is ignored to prevent open-redirect / phishing.
+   */
+  private safeRedirect(): string {
+    const target = this.route.snapshot.queryParamMap.get('redirectTo');
+    if (target && /^\/(?!\/)/.test(target)) {
+      return target;
+    }
+    return '/dashboard';
   }
 }

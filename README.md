@@ -32,6 +32,7 @@ comprehensive testing, containerized infrastructure and CI/CD.
 | **Domain**   | Accounts · Categories · Transactions · Transfers · Installments · Recurring · Budgets · Goals · Reports |
 | **Quality**  | Vitest · Supertest · Playwright · ESLint · Prettier · module boundaries                                 |
 | **Infra**    | Docker Compose · GitHub Actions · Swagger/OpenAPI                                                       |
+| **AI**       | MCP server ([`apps/mcp`](./apps/mcp/README.md)) — drive FinanceHub from Claude & other assistants       |
 
 > **Status:** the full stack is functional end-to-end — authentication, the
 > complete financial domain API (accounts, transactions, transfers, budgets,
@@ -88,6 +89,7 @@ financehub/
 ├── apps/
 │   ├── api/          NestJS backend (Clean Architecture)
 │   ├── web/          Angular frontend
+│   ├── mcp/          Model Context Protocol server (AI assistant access)
 │   └── web-e2e/      Playwright end-to-end tests
 ├── packages/
 │   ├── shared-types/ Types/contracts shared by api + web

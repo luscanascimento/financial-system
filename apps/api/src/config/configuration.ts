@@ -11,8 +11,21 @@ export interface AppConfiguration {
     nodeEnv: Env['NODE_ENV'];
     port: number;
     globalPrefix: string;
-    corsOrigin: string;
+    /** Allowed CORS origins, parsed from the comma-separated env var. */
+    corsOrigins: string[];
+    trustProxy: number;
+    requestTimeoutMs: number;
+    bodyLimit: string;
+    swaggerEnabled: boolean;
+    webUrl: string;
     isProduction: boolean;
+  };
+  security: {
+    encryptionKey: string;
+    passwordPepper?: string;
+  };
+  mfa: {
+    issuer: string;
   };
   database: {
     url: string;
@@ -54,8 +67,23 @@ export function loadConfiguration(): AppConfiguration {
       nodeEnv: env.NODE_ENV,
       port: env.PORT,
       globalPrefix: env.API_GLOBAL_PREFIX,
-      corsOrigin: env.CORS_ORIGIN,
+      corsOrigins: env.CORS_ORIGIN.split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean),
+      trustProxy: env.TRUST_PROXY,
+      requestTimeoutMs: env.REQUEST_TIMEOUT_MS,
+      bodyLimit: env.BODY_LIMIT,
+      // Docs are on by default outside production; opt in explicitly for prod.
+      swaggerEnabled: env.SWAGGER_ENABLED ?? env.NODE_ENV !== 'production',
+      webUrl: env.APP_WEB_URL,
       isProduction: env.NODE_ENV === 'production',
+    },
+    security: {
+      encryptionKey: env.ENCRYPTION_KEY,
+      passwordPepper: env.PASSWORD_PEPPER,
+    },
+    mfa: {
+      issuer: env.MFA_ISSUER,
     },
     database: {
       url: env.DATABASE_URL,

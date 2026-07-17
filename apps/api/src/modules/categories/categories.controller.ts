@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseEnumPipe,
   ParseUUIDPipe,
   Patch,
   Post,
@@ -20,6 +21,12 @@ import type {
   CategoryNode,
   FlowType,
 } from '@financehub/shared-types';
+
+/** Runtime enum for validating the optional `type` query parameter. */
+enum FlowTypeParam {
+  INCOME = 'INCOME',
+  EXPENSE = 'EXPENSE',
+}
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
@@ -39,7 +46,8 @@ export class CategoriesController {
   @ApiQuery({ name: 'tree', required: false, type: Boolean })
   list(
     @CurrentUser() user: AuthenticatedUser,
-    @Query('type') type?: FlowType,
+    @Query('type', new ParseEnumPipe(FlowTypeParam, { optional: true }))
+    type?: FlowType,
     @Query('tree') tree?: string,
   ): Promise<CategoryDto[] | CategoryNode[]> {
     if (tree === 'true') {

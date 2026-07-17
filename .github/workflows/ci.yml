@@ -40,6 +40,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Surface known high/critical advisories in the dependency tree. Advisory
+      # (non-blocking) so a freshly-published CVE with no fix can't wedge merges;
+      # review the step output and bump/override affected packages promptly.
+      - name: Audit dependencies
+        run: pnpm audit --audit-level=high --prod
+        continue-on-error: true
+
       - name: Generate Prisma client
         run: pnpm prisma:generate
 

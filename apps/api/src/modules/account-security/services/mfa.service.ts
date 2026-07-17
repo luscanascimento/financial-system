@@ -6,13 +6,15 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { User } from '@prisma/client';
 
+import { CryptoService } from '../../../common/crypto/crypto.service';
+import type { AppConfiguration } from '../../../config/configuration';
 import { UsersRepository } from '../../users/users.repository';
 import { MfaRecoveryCodeRepository } from '../repositories/mfa-recovery-code.repository';
 import { generateSecret, totpUri, verifyTotp } from './totp';
 
-/** Issuer label shown in authenticator apps. */
-const MFA_ISSUER = 'FinanceHub';
 /** Number of one-time recovery codes minted when MFA is enabled. */
 const RECOVERY_CODE_COUNT = 10;
 
@@ -36,14 +38,21 @@ export interface MfaEnableResult {
  */
 @Injectable()
 export class MfaService {
+  private readonly issuer: string;
+
   constructor(
     private readonly users: UsersRepository,
     private readonly recoveryCodes: MfaRecoveryCodeRepository,
-  ) {}
+    private readonly crypto: CryptoService,
+    configService: ConfigService<AppConfiguration, true>,
+  ) {
+    this.issuer = configService.get('mfa.issuer', { infer: true });
+  }
 
   /**
    * Generates a pending secret and stores it on the user, leaving MFA disabled
-   * until the user proves possession via {@link enable}.
+   * until the user proves possession via {@link enable}. The secret is
+   * encrypted (AES-256-GCM) before it touches the database.
    */
   async setup(userId: string): Promise<MfaSetupResult> {
     const user = await this.users.findById(userId);
@@ -51,8 +60,11 @@ export class MfaService {
       throw new NotFoundException('User not found');
     }
     const secret = generateSecret();
-    await this.users.update(user.id, { mfaSecret: secret, mfaEnabled: false });
-    return { secret, otpauthUri: totpUri(secret, user.email, MFA_ISSUER) };
+    await this.users.update(user.id, {
+      mfaSecret: this.crypto.encrypt(secret),
+      mfaEnabled: false,
+    });
+    return { secret, otpauthUri: totpUri(secret, user.email, this.issuer) };
   }
 
   /**
@@ -64,10 +76,11 @@ export class MfaService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    if (!user.mfaSecret) {
+    const secret = this.readSecret(user);
+    if (!secret) {
       throw new BadRequestException('MFA setup has not been started');
     }
-    if (!verifyTotp(user.mfaSecret, code)) {
+    if (!verifyTotp(secret, code)) {
       throw new UnauthorizedException('Invalid MFA code');
     }
 
@@ -109,10 +122,14 @@ export class MfaService {
    */
   async verify(userId: string, code: string): Promise<boolean> {
     const user = await this.users.findById(userId);
-    if (!user?.mfaSecret) {
+    if (!user) {
       return false;
     }
-    if (verifyTotp(user.mfaSecret, code)) {
+    const secret = this.readSecret(user);
+    if (!secret) {
+      return false;
+    }
+    if (verifyTotp(secret, code)) {
       return true;
     }
     // Fall back to one-time recovery codes.
@@ -126,6 +143,18 @@ export class MfaService {
     }
     await this.recoveryCodes.markUsed(match.id);
     return true;
+  }
+
+  /**
+   * Reads the user's TOTP secret, decrypting the at-rest envelope. Values
+   * predating encryption are returned as-is (transparent legacy fallback), so
+   * existing enrolments keep working and are re-encrypted on the next setup.
+   */
+  private readSecret(user: User): string | null {
+    if (!user.mfaSecret) {
+      return null;
+    }
+    return this.crypto.decryptOrPassthrough(user.mfaSecret);
   }
 
   /** Generates a human-friendly recovery code (10 hex chars, e.g. `a1b2c3d4e5`). */

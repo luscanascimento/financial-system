@@ -5,7 +5,7 @@ import type {
   AuthUser,
   LoginResponse,
 } from '@financehub/shared-types';
-import { Observable, tap } from 'rxjs';
+import { Observable, finalize, shareReplay, tap } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import { SKIP_ERROR_NOTIFICATION } from '../interceptors/error.interceptor';
@@ -28,6 +28,14 @@ export class AuthService {
   private readonly baseUrl = `${environment.apiBaseUrl}/auth`;
 
   private accessToken: string | null = null;
+
+  /**
+   * A single shared in-flight refresh. Concurrent 401s (e.g. a dashboard firing
+   * several requests at once) all await this one rotation instead of each
+   * POSTing `/auth/refresh` — multiple rotations would race the backend's
+   * refresh-token reuse detection and force a spurious logout.
+   */
+  private refreshInFlight: Observable<AuthResult> | null = null;
 
   private readonly user = signal<AuthUser | null>(null);
   /** The current authenticated user, or null. */
@@ -54,15 +62,28 @@ export class AuthService {
       .pipe(tap((res) => this.acceptSession(res)));
   }
 
-  /** Rotates the refresh cookie and refreshes the in-memory access token. */
+  /**
+   * Rotates the refresh cookie and refreshes the in-memory access token.
+   * Coalesces concurrent callers onto a single HTTP request.
+   */
   refresh(): Observable<AuthResult> {
-    return this.http
+    if (this.refreshInFlight) {
+      return this.refreshInFlight;
+    }
+    this.refreshInFlight = this.http
       .post<AuthResult>(
         `${this.baseUrl}/refresh`,
         {},
         { context: new HttpContext().set(SKIP_ERROR_NOTIFICATION, true) },
       )
-      .pipe(tap((res) => this.acceptSession(res)));
+      .pipe(
+        tap((res) => this.acceptSession(res)),
+        finalize(() => {
+          this.refreshInFlight = null;
+        }),
+        shareReplay({ bufferSize: 1, refCount: false }),
+      );
+    return this.refreshInFlight;
   }
 
   logout(): Observable<{ success: true }> {
@@ -101,8 +122,19 @@ export class AuthService {
     this.ready.set(true);
   }
 
+  /**
+   * Drops the local session without a network round-trip. Called when a token
+   * refresh fails (the server has already invalidated the session) so the app
+   * can redirect to login instead of looping on 401s.
+   */
+  forceLogout(): void {
+    this.clearSession();
+    this.ready.set(true);
+  }
+
   private clearSession(): void {
     this.accessToken = null;
     this.user.set(null);
+    this.refreshInFlight = null;
   }
 }

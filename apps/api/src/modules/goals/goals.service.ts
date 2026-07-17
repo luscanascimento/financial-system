@@ -140,15 +140,24 @@ export class GoalsService {
     await this.goals.delete(id);
   }
 
+  /** Upper bound on contributions returned in one call. */
+  private static readonly MAX_CONTRIBUTIONS = 500;
+  private static readonly DEFAULT_CONTRIBUTIONS = 100;
+
   async listContributions(
     userId: string,
     goalId: string,
+    limit?: number,
   ): Promise<GoalContributionDto[]> {
     const goal = await this.goals.findById(userId, goalId);
     if (!goal) {
       throw new NotFoundException('Goal not found');
     }
-    const contributions = await this.goals.listContributions(goalId);
+    const take = Math.min(
+      Math.max(1, limit ?? GoalsService.DEFAULT_CONTRIBUTIONS),
+      GoalsService.MAX_CONTRIBUTIONS,
+    );
+    const contributions = await this.goals.listContributions(goalId, take);
     return contributions.map(toGoalContribution);
   }
 

@@ -37,19 +37,52 @@ describe('validateEnv', () => {
   });
 
   it('rejects development JWT secrets in production', () => {
+    expect(() => validateEnv({ ...base, NODE_ENV: 'production' })).toThrow(
+      /JWT_ACCESS_SECRET/,
+    );
+  });
+
+  it('rejects the development encryption key in production', () => {
     expect(() =>
-      validateEnv({ ...base, NODE_ENV: 'production' }),
-    ).toThrow(/JWT_ACCESS_SECRET/);
+      validateEnv({
+        ...prodBase,
+        ENCRYPTION_KEY: 'dev-encryption-key-change-me-32-characters!!',
+      }),
+    ).toThrow(/ENCRYPTION_KEY/);
+  });
+
+  it('rejects weak datastore credentials in production', () => {
+    expect(() =>
+      validateEnv({
+        ...prodBase,
+        DATABASE_URL:
+          'postgresql://financehub:financehub@localhost:5432/financehub?schema=public',
+      }),
+    ).toThrow(/DATABASE_URL/);
+  });
+
+  it('parses the TOTP secret encryption pepper knobs with defaults', () => {
+    const env = validateEnv({ ...base });
+
+    expect(env.TRUST_PROXY).toBe(0);
+    expect(env.MFA_ISSUER).toBe('FinanceHub');
+    expect(env.ENCRYPTION_KEY.length).toBeGreaterThanOrEqual(32);
   });
 
   it('accepts strong secrets in production', () => {
-    const env = validateEnv({
-      ...base,
-      NODE_ENV: 'production',
-      JWT_ACCESS_SECRET: 'a-sufficiently-long-access-secret-value',
-      JWT_REFRESH_SECRET: 'a-sufficiently-long-refresh-secret-value',
-    });
+    const env = validateEnv({ ...prodBase });
 
     expect(env.NODE_ENV).toBe('production');
   });
 });
+
+/** A fully production-safe environment (no dev defaults tripped). */
+const prodBase = {
+  NODE_ENV: 'production',
+  DATABASE_URL:
+    'postgresql://app:sTr0ng-Passw0rd@db.internal:5432/financehub?schema=public',
+  JWT_ACCESS_SECRET: 'a-sufficiently-long-access-secret-value',
+  JWT_REFRESH_SECRET: 'a-sufficiently-long-refresh-secret-value',
+  ENCRYPTION_KEY: 'a-sufficiently-long-encryption-key-value-32+',
+  MINIO_SECRET_KEY: 'a-strong-object-storage-secret-value',
+};

@@ -16,7 +16,39 @@ export const envSchema = z
       .default('development'),
     PORT: z.coerce.number().int().positive().default(3000),
     API_GLOBAL_PREFIX: z.string().min(1).default('api'),
+    // One or more allowed CORS origins, comma-separated.
     CORS_ORIGIN: z.string().default('http://localhost:8080'),
+    // Number of reverse-proxy hops to trust for `req.ip` / `X-Forwarded-*`.
+    // `0` disables proxy trust (correct for local dev with no proxy); the
+    // bundled nginx deployment sets this to `1`. Never trust blindly — a value
+    // higher than the real hop count lets clients spoof their forwarded IP.
+    TRUST_PROXY: z.coerce.number().int().min(0).max(10).default(0),
+    // Per-request timeout (ms). Slow/hung requests are aborted so they cannot
+    // pile up and exhaust the event loop.
+    REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
+    // Maximum accepted request body size (any `bytes`-parseable string).
+    BODY_LIMIT: z.string().default('1mb'),
+    // Explicitly expose Swagger/OpenAPI docs. Unset ⇒ enabled outside production.
+    SWAGGER_ENABLED: z
+      .enum(['true', 'false'])
+      .optional()
+      .transform((value) =>
+        value === undefined ? undefined : value === 'true',
+      ),
+    // Base URL of the web app, used to build links in outbound emails.
+    APP_WEB_URL: z.string().url().default('http://localhost:8080'),
+
+    // Cryptography (data-at-rest encryption + optional password pepper)
+    ENCRYPTION_KEY: z
+      .string()
+      .min(32)
+      .default('dev-encryption-key-change-me-32-characters!!'),
+    // Optional application-side pepper mixed into Argon2id. Once set it must
+    // remain stable — changing it invalidates every existing password hash.
+    PASSWORD_PEPPER: z.string().min(16).optional(),
+
+    // Multi-factor authentication
+    MFA_ISSUER: z.string().min(1).default('FinanceHub'),
 
     // Persistence
     DATABASE_URL: z
@@ -66,6 +98,8 @@ export const envSchema = z
     const insecure: Array<[keyof typeof env, string]> = [
       ['JWT_ACCESS_SECRET', 'dev-access-secret-change-me-32-characters'],
       ['JWT_REFRESH_SECRET', 'dev-refresh-secret-change-me-32-characters'],
+      ['ENCRYPTION_KEY', 'dev-encryption-key-change-me-32-characters!!'],
+      ['MINIO_SECRET_KEY', 'financehub-secret'],
     ];
     for (const [key, devDefault] of insecure) {
       if (env[key] === devDefault) {
@@ -75,6 +109,15 @@ export const envSchema = z
           message: `${key} must be overridden with a strong secret in production`,
         });
       }
+    }
+    // The development DATABASE_URL ships weak, well-known credentials.
+    if (env.DATABASE_URL.includes('financehub:financehub@')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['DATABASE_URL'],
+        message:
+          'DATABASE_URL must use strong credentials in production (not the financehub:financehub dev default)',
+      });
     }
   });
 
@@ -89,7 +132,9 @@ export function validateEnv(raw: Record<string, unknown>): Env {
 
   if (!result.success) {
     const details = result.error.issues
-      .map((issue) => `  - ${issue.path.join('.') || '(root)'}: ${issue.message}`)
+      .map(
+        (issue) => `  - ${issue.path.join('.') || '(root)'}: ${issue.message}`,
+      )
       .join('\n');
     throw new Error(`Invalid environment configuration:\n${details}`);
   }

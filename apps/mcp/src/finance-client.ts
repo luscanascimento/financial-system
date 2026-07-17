@@ -95,6 +95,7 @@ export class FinanceClient {
         email: this.config.email,
         password: this.config.password,
       }),
+      signal: AbortSignal.timeout(this.config.requestTimeoutMs),
     });
     if (!res.ok) {
       throw new FinanceApiError(
@@ -154,6 +155,9 @@ export class FinanceClient {
         },
         body:
           options.body === undefined ? undefined : JSON.stringify(options.body),
+        // Abort a hung API call so a single stalled request can't wedge the
+        // MCP server indefinitely.
+        signal: AbortSignal.timeout(this.config.requestTimeoutMs),
       });
     };
 

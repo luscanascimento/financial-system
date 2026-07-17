@@ -40,6 +40,18 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           push: false
+          load: true
           tags: financehub-${{ matrix.app }}:ci
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+      # Scan the built image for known OS/library vulnerabilities. Advisory
+      # (non-blocking) so a fresh CVE can't wedge merges; review the SARIF report.
+      - name: Scan image (${{ matrix.app }})
+        uses: aquasecurity/trivy-action@0.28.0
+        continue-on-error: true
+        with:
+          image-ref: financehub-${{ matrix.app }}:ci
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true

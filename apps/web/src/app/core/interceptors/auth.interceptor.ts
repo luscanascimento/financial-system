@@ -4,6 +4,7 @@ import {
   HttpRequest,
 } from '@angular/common/http';
 import { inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { catchError, switchMap, throwError } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
@@ -19,6 +20,7 @@ const AUTH_FREE_PATHS = ['/auth/login', '/auth/register', '/auth/refresh'];
  */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
+  const router = inject(Router);
   if (!req.url.startsWith(environment.apiBaseUrl)) {
     return next(req);
   }
@@ -31,9 +33,16 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         error.status === 401 &&
         !isAuthFree
       ) {
-        return auth
-          .refresh()
-          .pipe(switchMap(() => next(withBearer(req, auth.getAccessToken()))));
+        return auth.refresh().pipe(
+          switchMap(() => next(withBearer(req, auth.getAccessToken()))),
+          // The refresh itself failed: the session is gone for good. Clear
+          // local state and send the user to login rather than looping on 401s.
+          catchError((refreshError: unknown) => {
+            auth.forceLogout();
+            void router.navigate(['/auth/login']);
+            return throwError(() => refreshError);
+          }),
+        );
       }
       return throwError(() => error);
     }),

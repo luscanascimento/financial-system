@@ -125,18 +125,25 @@ export class CategoriesService {
       }
     }
 
-    const updated = await this.categories.update(id, {
+    const updated = await this.categories.update(userId, id, {
       name: dto.name,
       parentId: dto.parentId,
       color: dto.color,
       icon: dto.icon,
     });
+    if (!updated) {
+      throw new NotFoundException('Category not found');
+    }
     return toCategoryDto(updated);
   }
 
   async archive(userId: string, id: string): Promise<CategoryDto> {
     await this.getOwnedOrThrow(userId, id);
-    return toCategoryDto(await this.categories.archive(id));
+    const archived = await this.categories.archive(userId, id);
+    if (!archived) {
+      throw new NotFoundException('Category not found');
+    }
+    return toCategoryDto(archived);
   }
 
   /**

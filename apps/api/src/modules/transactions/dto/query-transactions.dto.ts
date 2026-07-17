@@ -14,8 +14,15 @@ import {
   IsString,
   IsUUID,
   Max,
+  MaxLength,
   Min,
 } from 'class-validator';
+
+import {
+  MAX_MINOR_AMOUNT,
+  MAX_SEARCH_LENGTH,
+} from '../../../common/validation/constants';
+import { IsAfterOrEqual } from '../../../common/validation/is-after-or-equal';
 
 const FLOW_TYPES: FlowType[] = ['INCOME', 'EXPENSE'];
 const STATUSES: TransactionStatus[] = ['PENDING', 'CLEARED'];
@@ -48,9 +55,13 @@ export class QueryTransactionsDto implements PaginationQuery {
   @IsEnum(SORT_ORDERS)
   sortOrder?: SortOrder;
 
-  @ApiPropertyOptional({ description: 'Free-text match on description/notes.' })
+  @ApiPropertyOptional({
+    description: 'Free-text match on description/notes.',
+    maxLength: MAX_SEARCH_LENGTH,
+  })
   @IsOptional()
   @IsString()
+  @MaxLength(MAX_SEARCH_LENGTH)
   search?: string;
 
   @ApiPropertyOptional({ format: 'uuid' })
@@ -83,21 +94,34 @@ export class QueryTransactionsDto implements PaginationQuery {
 
   @ApiPropertyOptional({
     format: 'date-time',
-    description: 'Inclusive upper date bound.',
+    description: 'Inclusive upper date bound (must be ≥ `from`).',
   })
   @IsOptional()
   @IsISO8601()
+  @IsAfterOrEqual('from')
   to?: string;
 
-  @ApiPropertyOptional({ description: 'Minimum amount in minor units.' })
+  @ApiPropertyOptional({
+    description: 'Minimum amount in minor units.',
+    minimum: 0,
+    maximum: MAX_MINOR_AMOUNT,
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
+  @Min(0)
+  @Max(MAX_MINOR_AMOUNT)
   minAmountMinor?: number;
 
-  @ApiPropertyOptional({ description: 'Maximum amount in minor units.' })
+  @ApiPropertyOptional({
+    description: 'Maximum amount in minor units.',
+    minimum: 0,
+    maximum: MAX_MINOR_AMOUNT,
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
+  @Min(0)
+  @Max(MAX_MINOR_AMOUNT)
   maxAmountMinor?: number;
 }

@@ -4,10 +4,25 @@ import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import type { MfaRecoveryCode, User } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { ConfigService } from '@nestjs/config';
+
+import { CryptoService } from '../../../common/crypto/crypto.service';
+import type { AppConfiguration } from '../../../config/configuration';
 import type { UsersRepository } from '../../users/users.repository';
 import type { MfaRecoveryCodeRepository } from '../repositories/mfa-recovery-code.repository';
 import { MfaService } from './mfa.service';
 import { generateHotp } from './totp';
+
+/** A real CryptoService backed by a fixed test key. */
+const cryptoConfig = {
+  get: () => 'test-encryption-key-that-is-long-enough-1234',
+} as unknown as ConfigService<AppConfiguration, true>;
+const crypto = new CryptoService(cryptoConfig);
+
+/** Stub config exposing only the MFA issuer used by the service. */
+const mfaConfig = {
+  get: () => 'FinanceHub',
+} as unknown as ConfigService<AppConfiguration, true>;
 
 // A fixed Base32 secret (RFC 6238 reference) lets us derive a valid, current
 // TOTP code deterministically for the enable/verify assertions.
@@ -49,7 +64,7 @@ function setup() {
   } as unknown as MfaRecoveryCodeRepository;
 
   return {
-    service: new MfaService(users, recoveryCodes),
+    service: new MfaService(users, recoveryCodes, crypto, mfaConfig),
     users,
     recoveryCodes,
   };
@@ -70,10 +85,30 @@ describe('MfaService', () => {
 
       expect(result.secret).toMatch(/^[A-Z2-7]+$/);
       expect(result.otpauthUri).toContain('otpauth://totp/');
-      expect(ctx.users.update).toHaveBeenCalledWith(baseUser.id, {
-        mfaSecret: result.secret,
-        mfaEnabled: false,
+
+      const [, patch] = vi.mocked(ctx.users.update).mock.calls[0];
+      const storedSecret = (patch as { mfaSecret: string }).mfaSecret;
+      // The secret is persisted encrypted, never in the clear...
+      expect(storedSecret).not.toBe(result.secret);
+      expect(crypto.isEncrypted(storedSecret)).toBe(true);
+      // ...and round-trips back to the plaintext handed to the user.
+      expect(crypto.decrypt(storedSecret)).toBe(result.secret);
+      expect((patch as { mfaEnabled: boolean }).mfaEnabled).toBe(false);
+    });
+
+    it('reads back an encrypted secret when enabling', async () => {
+      const encrypted = crypto.encrypt(FIXED_SECRET);
+      vi.mocked(ctx.users.findById).mockResolvedValue({
+        ...baseUser,
+        mfaSecret: encrypted,
       });
+
+      const result = await ctx.service.enable(
+        baseUser.id,
+        currentCode(FIXED_SECRET),
+      );
+
+      expect(result.recoveryCodes).toHaveLength(10);
     });
   });
 

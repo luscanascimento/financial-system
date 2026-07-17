@@ -6,12 +6,18 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseIntPipe,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import type {
   Goal,
   GoalContribution,
@@ -84,12 +90,14 @@ export class GoalsController {
   }
 
   @Get(':id/contributions')
-  @ApiOperation({ summary: 'List contributions toward a goal' })
+  @ApiOperation({ summary: 'List recent contributions toward a goal' })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   listContributions(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
+    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
   ): Promise<GoalContribution[]> {
-    return this.goals.listContributions(user.userId, id);
+    return this.goals.listContributions(user.userId, id, limit);
   }
 
   @Post(':id/contributions')

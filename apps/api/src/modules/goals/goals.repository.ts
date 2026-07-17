@@ -63,10 +63,12 @@ export class GoalsRepository {
     return tx.goalContribution.create({ data });
   }
 
-  listContributions(goalId: string): Promise<GoalContribution[]> {
+  /** Most recent contributions first, hard-capped by `take` to bound the result. */
+  listContributions(goalId: string, take: number): Promise<GoalContribution[]> {
     return this.prisma.goalContribution.findMany({
       where: { goalId },
       orderBy: { date: 'desc' },
+      take,
     });
   }
 

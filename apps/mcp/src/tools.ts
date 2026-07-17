@@ -19,6 +19,14 @@ const ACCOUNT_TYPE = z.enum([
   'INVESTMENT',
 ]);
 
+// Bounded free-text fragments so tool arguments can't be arbitrarily large.
+const DATE_STR = z.string().max(40);
+const SEARCH_STR = z.string().max(100);
+const DESCRIPTION_STR = z.string().min(1).max(200);
+const NOTES_STR = z.string().max(2000);
+// Major-unit amount cap (mirrors the API's signed-32-bit minor-unit column).
+const AMOUNT_MAJOR = z.number().positive().max(21_474_836);
+
 /** Wraps a value as a pretty-printed text tool result. */
 function ok(data: unknown): CallToolResult {
   return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
@@ -103,7 +111,7 @@ export function registerTools(server: McpServer, client: FinanceClient): void {
       inputSchema: {
         name: z.string().min(1).max(120),
         type: ACCOUNT_TYPE,
-        initialBalanceMajor: z.number(),
+        initialBalanceMajor: z.number().min(-21_474_836).max(21_474_836),
         currency: z.string().length(3).optional(),
         institution: z.string().max(120).optional(),
       },
@@ -147,9 +155,9 @@ export function registerTools(server: McpServer, client: FinanceClient): void {
         accountId: z.string().uuid().optional(),
         categoryId: z.string().uuid().optional(),
         type: FLOW_TYPE.optional(),
-        from: z.string().optional(),
-        to: z.string().optional(),
-        search: z.string().optional(),
+        from: DATE_STR.optional(),
+        to: DATE_STR.optional(),
+        search: SEARCH_STR.optional(),
         page: z.number().int().min(1).optional(),
         pageSize: z.number().int().min(1).max(100).optional(),
       },
@@ -181,11 +189,11 @@ export function registerTools(server: McpServer, client: FinanceClient): void {
       inputSchema: {
         accountId: z.string().uuid(),
         type: FLOW_TYPE,
-        amountMajor: z.number().positive(),
-        description: z.string().min(1),
-        date: z.string().optional(),
+        amountMajor: AMOUNT_MAJOR,
+        description: DESCRIPTION_STR,
+        date: DATE_STR.optional(),
         categoryId: z.string().uuid().optional(),
-        notes: z.string().optional(),
+        notes: NOTES_STR.optional(),
       },
     },
     ({ accountId, type, amountMajor, description, date, categoryId, notes }) =>
@@ -281,8 +289,8 @@ export function registerTools(server: McpServer, client: FinanceClient): void {
       description: 'Spend or income grouped by category for a period.',
       inputSchema: {
         type: FLOW_TYPE.optional(),
-        from: z.string().optional(),
-        to: z.string().optional(),
+        from: DATE_STR.optional(),
+        to: DATE_STR.optional(),
       },
     },
     ({ type, from, to }) =>

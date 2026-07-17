@@ -1,4 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+
+import type { AppConfiguration } from '../../config/configuration';
 
 export interface MailMessage {
   to: string;
@@ -18,7 +21,11 @@ export class MailService {
   private readonly logger = new Logger(MailService.name);
 
   /** Base URL of the web app, used to build user-facing action links. */
-  private readonly webUrl = process.env.APP_WEB_URL ?? 'http://localhost:8080';
+  private readonly webUrl: string;
+
+  constructor(configService: ConfigService<AppConfiguration, true>) {
+    this.webUrl = configService.get('app.webUrl', { infer: true });
+  }
 
   /** Delivers a message. The dev transport logs it and resolves to void. */
   async send(message: MailMessage): Promise<void> {

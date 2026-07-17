@@ -13,12 +13,16 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    # Block privilege escalation inside the container.
+    security_opt:
+      - no-new-privileges:true
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-financehub}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-financehub}
       POSTGRES_DB: ${POSTGRES_DB:-financehub}
+    # Bind to loopback only — the datastore must never be reachable off-host.
     ports:
-      - '${POSTGRES_PORT:-5432}:5432'
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -31,9 +35,11 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     command: ['redis-server', '--appendonly', 'yes']
     ports:
-      - '${REDIS_PORT:-6379}:6379'
+      - '127.0.0.1:${REDIS_PORT:-6379}:6379'
     volumes:
       - redisdata:/data
     healthcheck:
@@ -43,24 +49,35 @@ services:
       retries: 5
 
   minio:
-    image: minio/minio:latest
+    # Pin the image (override via MINIO_IMAGE) — ':latest' is non-reproducible.
+    image: ${MINIO_IMAGE:-minio/minio:RELEASE.2024-10-13T13-34-11Z}
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-financehub}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-financehub-secret}
     ports:
-      - '${MINIO_PORT:-9000}:9000'
-      - '${MINIO_CONSOLE_PORT:-9001}:9001'
+      - '127.0.0.1:${MINIO_PORT:-9000}:9000'
+      - '127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001'
     volumes:
       - miniodata:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # One-shot: create the application bucket, then exit.
   minio-setup:
-    image: minio/mc:latest
+    image: ${MC_IMAGE:-minio/mc:RELEASE.2024-10-08T09-37-26Z}
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       minio:
-        condition: service_started
+        condition: service_healthy
     entrypoint: >
       /bin/sh -c "
       until mc alias set local http://minio:9000 ${MINIO_ACCESS_KEY:-financehub} ${MINIO_SECRET_KEY:-financehub-secret}; do
@@ -76,25 +93,42 @@ services:
       context: .
       dockerfile: docker/api.Dockerfile
     restart: unless-stopped
+    # Node app needs no Linux capabilities and must not gain new privileges.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
       minio:
-        condition: service_started
+        condition: service_healthy
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
+      # Defaults to development so the stack boots out-of-the-box with the dev
+      # secrets below. Set NODE_ENV=production (with strong secrets) to deploy —
+      # the API refuses to boot in production with any dev-default secret.
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 3000
       API_GLOBAL_PREFIX: api
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
+      # One reverse-proxy hop (the web/nginx container) sits in front of the API.
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      APP_WEB_URL: ${APP_WEB_URL:-http://localhost:8080}
       DATABASE_URL: postgresql://${POSTGRES_USER:-financehub}:${POSTGRES_PASSWORD:-financehub}@postgres:5432/${POSTGRES_DB:-financehub}?schema=public
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-change-me-32-characters}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-me-32-characters}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-7d}
+      # AES-256-GCM key for encrypting sensitive columns (TOTP secrets, …).
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-dev-encryption-key-change-me-32-characters!!}
+      # Optional Argon2 password pepper (must stay stable once set).
+      PASSWORD_PEPPER: ${PASSWORD_PEPPER:-}
+      MFA_ISSUER: ${MFA_ISSUER:-FinanceHub}
       THROTTLE_TTL: ${THROTTLE_TTL:-60}
       THROTTLE_LIMIT: ${THROTTLE_LIMIT:-120}
       MINIO_ENDPOINT: minio
@@ -123,11 +157,14 @@ services:
       context: .
       dockerfile: docker/web.Dockerfile
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       api:
         condition: service_healthy
+    # nginx runs unprivileged and listens on 8080 inside the container.
     ports:
-      - '${WEB_PORT:-8080}:80'
+      - '${WEB_PORT:-8080}:8080'
 
 volumes:
   pgdata:

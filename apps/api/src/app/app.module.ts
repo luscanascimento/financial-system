@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
+import { CryptoModule } from '../common/crypto/crypto.module';
 import {
   loadConfiguration,
   type AppConfiguration,
@@ -11,6 +12,7 @@ import { validateEnv } from '../config/env.validation';
 import { HealthModule } from '../health/health.module';
 import { PrismaModule } from '../infrastructure/prisma/prisma.module';
 import { RedisModule } from '../infrastructure/redis/redis.module';
+import { RedisThrottlerStorage } from '../infrastructure/redis/redis-throttler.storage';
 import { AccountSecurityModule } from '../modules/account-security/account-security.module';
 import { AccountsModule } from '../modules/accounts/accounts.module';
 import { AuthModule } from '../modules/auth/auth.module';
@@ -39,16 +41,22 @@ import { UsersModule } from '../modules/users/users.module';
       load: [loadConfiguration],
     }),
     ThrottlerModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService<AppConfiguration, true>) => {
+      inject: [ConfigService, RedisThrottlerStorage],
+      useFactory: (
+        configService: ConfigService<AppConfiguration, true>,
+        storage: RedisThrottlerStorage,
+      ) => {
         const throttle = configService.get('throttle', { infer: true });
         return {
+          // Redis-backed store so limits are enforced globally across replicas.
+          storage,
           throttlers: [{ ttl: throttle.ttl * 1000, limit: throttle.limit }],
         };
       },
     }),
     PrismaModule,
     RedisModule,
+    CryptoModule,
     HealthModule,
     MailModule,
     AuthModule,

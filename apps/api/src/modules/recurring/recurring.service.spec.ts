@@ -120,7 +120,7 @@ describe('RecurringService', () => {
         '2026-07-15T00:00:00.000Z',
       );
       expect(updateData.lastRunAt).toEqual(now);
-      expect(result).toEqual({ processed: 1, generated: 1 });
+      expect(result).toEqual({ processed: 1, generated: 1, failed: 0 });
     });
 
     it('advances a weekly template by interval weeks', async () => {
@@ -145,7 +145,25 @@ describe('RecurringService', () => {
       vi.mocked(ctx.recurring.findDue).mockResolvedValue([]);
       const result = await ctx.service.runDue(USER_ID);
       expect(ctx.transactions.create).not.toHaveBeenCalled();
-      expect(result).toEqual({ processed: 0, generated: 0 });
+      expect(result).toEqual({ processed: 0, generated: 0, failed: 0 });
+    });
+
+    it('isolates a failing template so the rest of the batch still runs', async () => {
+      const now = new Date('2026-07-20T00:00:00.000Z');
+      vi.mocked(ctx.recurring.findDue).mockResolvedValue([
+        template({ id: 'bad' }),
+        template({ id: 'good' }),
+      ]);
+      vi.mocked(ctx.transactions.create)
+        .mockRejectedValueOnce(new Error('insufficient funds'))
+        .mockResolvedValueOnce(undefined as never);
+
+      const result = await ctx.service.runDue(USER_ID, now);
+
+      // The good template is still processed despite the earlier failure.
+      expect(result).toEqual({ processed: 2, generated: 1, failed: 1 });
+      // The failing template's schedule is NOT advanced (it retries next run).
+      expect(ctx.recurring.update).toHaveBeenCalledTimes(1);
     });
   });
 });
