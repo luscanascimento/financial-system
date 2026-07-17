@@ -339,7 +339,7 @@ class _BudgetFormState extends ConsumerState<_BudgetForm> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String?>(
-                value: _categoryId,
+                initialValue: _categoryId,
                 decoration:
                     const InputDecoration(labelText: 'Category (optional)'),
                 items: [
@@ -357,7 +357,7 @@ class _BudgetFormState extends ConsumerState<_BudgetForm> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<BudgetPeriod>(
-                value: _period,
+                initialValue: _period,
                 decoration: const InputDecoration(labelText: 'Period'),
                 items: [
                   for (final p in BudgetPeriod.values)

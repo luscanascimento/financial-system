@@ -274,7 +274,7 @@ class _CategoryFormState extends ConsumerState<_CategoryForm> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<FlowType>(
-                value: _type,
+                initialValue: _type,
                 decoration: const InputDecoration(labelText: 'Type'),
                 items: [
                   for (final t in FlowType.values)

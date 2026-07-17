@@ -17,7 +17,7 @@ class VerifyEmailScreen extends ConsumerStatefulWidget {
 }
 
 class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
-  late Future<void>? _verification =
+  late final Future<void>? _verification =
       (widget.token != null && widget.token!.isNotEmpty)
           ? _verify(widget.token!)
           : null;

@@ -614,7 +614,7 @@ class _GoalFormState extends ConsumerState<_GoalForm> {
               const SizedBox(height: 12),
               accounts.when(
                 data: (items) => DropdownButtonFormField<String?>(
-                  value: _accountId,
+                  initialValue: _accountId,
                   decoration: const InputDecoration(
                       labelText: 'Linked account (optional)'),
                   items: [

@@ -1,5 +1,6 @@
 /// Domain enums mirroring the Prisma schema / shared-types contract. Each
 /// carries its wire value (the exact string the API sends/accepts).
+library;
 
 enum FlowType {
   income('INCOME'),

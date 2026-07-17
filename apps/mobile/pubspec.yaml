@@ -4,10 +4,10 @@ publish_to: "none"
 version: 0.1.0+1
 
 environment:
-  # Flutter 3.27+ / Dart 3.6+ for the Material 3 APIs used here
-  # (Color.withValues, CardThemeData, surfaceContainer* roles).
+  # Flutter 3.35+ for the Material 3 APIs used here (Color.withValues,
+  # CardThemeData, surfaceContainer* roles, DropdownButtonFormField.initialValue).
   sdk: ">=3.6.0 <4.0.0"
-  flutter: ">=3.27.0"
+  flutter: ">=3.35.0"
 
 dependencies:
   flutter:

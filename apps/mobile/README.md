@@ -47,8 +47,9 @@ Each feature follows the same pattern: a `*_providers.dart` (repository +
 
 ## Getting started
 
-Requires **Flutter 3.27+ (Dart 3.6+)**. Flutter is **not** vendored in this
-repo. From `apps/mobile`:
+Requires **Flutter 3.35+**. Verified on Flutter 3.44 (`flutter analyze` clean,
+`flutter test` green, `flutter build web` succeeds). Flutter is **not** vendored
+in this repo. From `apps/mobile`:
 
 ```bash
 # 1. Generate the platform folders (android/ios/web/…) for this package.

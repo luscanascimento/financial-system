@@ -269,7 +269,7 @@ class _TransactionFormState extends ConsumerState<_TransactionForm> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _accountId,
+                initialValue: _accountId,
                 decoration: const InputDecoration(labelText: 'Account'),
                 items: [
                   for (final a in accountItems)
@@ -282,7 +282,7 @@ class _TransactionFormState extends ConsumerState<_TransactionForm> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String?>(
-                value: _categoryId,
+                initialValue: _categoryId,
                 decoration:
                     const InputDecoration(labelText: 'Category (optional)'),
                 items: [

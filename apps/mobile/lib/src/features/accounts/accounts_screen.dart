@@ -246,7 +246,7 @@ class _AccountFormState extends ConsumerState<_AccountForm> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<AccountType>(
-                value: _type,
+                initialValue: _type,
                 decoration: const InputDecoration(labelText: 'Type'),
                 items: [
                   for (final t in AccountType.values)

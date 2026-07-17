@@ -1,6 +1,7 @@
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
 
 import '../config/env.dart';
@@ -41,10 +42,17 @@ class ApiClient {
   ];
 
   static Future<ApiClient> create() async {
-    final supportDir = await getApplicationSupportDirectory();
-    final jar = PersistCookieJar(
-      storage: FileStorage('${supportDir.path}/.fh_cookies'),
-    );
+    // On web there is no filesystem (and the browser manages cookies itself),
+    // so fall back to an in-memory jar; native platforms persist it to disk.
+    final CookieJar jar;
+    if (kIsWeb) {
+      jar = CookieJar();
+    } else {
+      final supportDir = await getApplicationSupportDirectory();
+      jar = PersistCookieJar(
+        storage: FileStorage('${supportDir.path}/.fh_cookies'),
+      );
+    }
     final tokens = TokenStore();
     await tokens.load();
 
