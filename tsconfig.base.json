@@ -16,8 +16,7 @@
     "baseUrl": ".",
     "paths": {
       "@financehub/shared-types": ["./packages/shared-types/src/index.ts"],
-      "@financehub/shared-utils": ["./packages/shared-utils/src/index.ts"],
-      "@financehub/ui": ["./packages/ui/src/index.ts"]
+      "@financehub/shared-utils": ["./packages/shared-utils/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

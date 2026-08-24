@@ -37,11 +37,6 @@ export default [
               onlyDependOnLibsWithTags: ['scope:mcp', 'scope:shared'],
             },
             {
-              // Presentational UI must stay free of feature/domain logic.
-              sourceTag: 'type:ui',
-              onlyDependOnLibsWithTags: ['type:ui', 'type:util', 'type:types'],
-            },
-            {
               // Pure types may only depend on other pure types.
               sourceTag: 'type:types',
               onlyDependOnLibsWithTags: ['type:types'],
