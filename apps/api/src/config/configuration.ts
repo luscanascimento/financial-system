@@ -45,14 +45,6 @@ export interface AppConfiguration {
     ttl: number;
     limit: number;
   };
-  storage: {
-    endpoint: string;
-    port: number;
-    accessKey: string;
-    secretKey: string;
-    bucket: string;
-    useSsl: boolean;
-  };
 }
 
 /**
@@ -102,14 +94,6 @@ export function loadConfiguration(): AppConfiguration {
     throttle: {
       ttl: env.THROTTLE_TTL,
       limit: env.THROTTLE_LIMIT,
-    },
-    storage: {
-      endpoint: env.MINIO_ENDPOINT,
-      port: env.MINIO_PORT,
-      accessKey: env.MINIO_ACCESS_KEY,
-      secretKey: env.MINIO_SECRET_KEY,
-      bucket: env.MINIO_BUCKET,
-      useSsl: env.MINIO_USE_SSL,
     },
   };
 }

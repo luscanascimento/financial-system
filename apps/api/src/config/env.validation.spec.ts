@@ -22,12 +22,12 @@ describe('validateEnv', () => {
       ...base,
       PORT: '4000',
       REDIS_PORT: '6380',
-      MINIO_USE_SSL: 'true',
+      SWAGGER_ENABLED: 'true',
     });
 
     expect(env.PORT).toBe(4000);
     expect(env.REDIS_PORT).toBe(6380);
-    expect(env.MINIO_USE_SSL).toBe(true);
+    expect(env.SWAGGER_ENABLED).toBe(true);
   });
 
   it('rejects an invalid DATABASE_URL', () => {
@@ -84,5 +84,4 @@ const prodBase = {
   JWT_ACCESS_SECRET: 'a-sufficiently-long-access-secret-value',
   JWT_REFRESH_SECRET: 'a-sufficiently-long-refresh-secret-value',
   ENCRYPTION_KEY: 'a-sufficiently-long-encryption-key-value-32+',
-  MINIO_SECRET_KEY: 'a-strong-object-storage-secret-value',
 };

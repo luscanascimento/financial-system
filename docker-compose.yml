@@ -2,8 +2,8 @@
 #
 #   docker compose up --build
 #
-# Boots PostgreSQL, Redis, MinIO (+ bucket bootstrap), the NestJS API (which
-# applies migrations on start) and the Angular web app served by nginx.
+# Boots PostgreSQL, Redis, the NestJS API (which applies migrations on start)
+# and the Angular web app served by nginx.
 # Every value has a sensible development default, so no .env is required; copy
 # .env.example to .env to override secrets/ports.
 
@@ -48,46 +48,6 @@ services:
       timeout: 5s
       retries: 5
 
-  minio:
-    # Pin the image (override via MINIO_IMAGE) — ':latest' is non-reproducible.
-    image: ${MINIO_IMAGE:-minio/minio:RELEASE.2024-10-13T13-34-11Z}
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-financehub}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-financehub-secret}
-    ports:
-      - '127.0.0.1:${MINIO_PORT:-9000}:9000'
-      - '127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001'
-    volumes:
-      - miniodata:/data
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
-  # One-shot: create the application bucket, then exit.
-  minio-setup:
-    image: ${MC_IMAGE:-minio/mc:RELEASE.2024-10-08T09-37-26Z}
-    security_opt:
-      - no-new-privileges:true
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      until mc alias set local http://minio:9000 ${MINIO_ACCESS_KEY:-financehub} ${MINIO_SECRET_KEY:-financehub-secret}; do
-        echo 'waiting for minio...'; sleep 2;
-      done &&
-      mc mb --ignore-existing local/${MINIO_BUCKET:-financehub} &&
-      echo 'bucket ready'
-      "
-    restart: 'no'
-
   api:
     build:
       context: .
@@ -102,8 +62,6 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      minio:
         condition: service_healthy
     environment:
       # Defaults to development so the stack boots out-of-the-box with the dev
@@ -131,12 +89,6 @@ services:
       MFA_ISSUER: ${MFA_ISSUER:-FinanceHub}
       THROTTLE_TTL: ${THROTTLE_TTL:-60}
       THROTTLE_LIMIT: ${THROTTLE_LIMIT:-120}
-      MINIO_ENDPOINT: minio
-      MINIO_PORT: 9000
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-financehub}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-financehub-secret}
-      MINIO_BUCKET: ${MINIO_BUCKET:-financehub}
-      MINIO_USE_SSL: 'false'
     ports:
       - '${API_PORT:-3000}:3000'
     healthcheck:
@@ -169,4 +121,3 @@ services:
 volumes:
   pgdata:
   redisdata:
-  miniodata:

@@ -78,17 +78,6 @@ export const envSchema = z
     // Rate limiting
     THROTTLE_TTL: z.coerce.number().int().positive().default(60),
     THROTTLE_LIMIT: z.coerce.number().int().positive().default(120),
-
-    // Object storage (MinIO / S3-compatible)
-    MINIO_ENDPOINT: z.string().default('localhost'),
-    MINIO_PORT: z.coerce.number().int().positive().default(9000),
-    MINIO_ACCESS_KEY: z.string().default('financehub'),
-    MINIO_SECRET_KEY: z.string().default('financehub-secret'),
-    MINIO_BUCKET: z.string().default('financehub'),
-    MINIO_USE_SSL: z
-      .enum(['true', 'false'])
-      .default('false')
-      .transform((value) => value === 'true'),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') {
@@ -99,7 +88,6 @@ export const envSchema = z
       ['JWT_ACCESS_SECRET', 'dev-access-secret-change-me-32-characters'],
       ['JWT_REFRESH_SECRET', 'dev-refresh-secret-change-me-32-characters'],
       ['ENCRYPTION_KEY', 'dev-encryption-key-change-me-32-characters!!'],
-      ['MINIO_SECRET_KEY', 'financehub-secret'],
     ];
     for (const [key, devDefault] of insecure) {
       if (env[key] === devDefault) {

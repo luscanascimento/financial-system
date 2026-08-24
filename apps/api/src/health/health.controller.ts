@@ -10,12 +10,11 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../modules/auth/decorators/public.decorator';
 import { DatabaseHealthIndicator } from './indicators/database.health';
 import { RedisHealthIndicator } from './indicators/redis.health';
-import { StorageHealthIndicator } from './indicators/storage.health';
 
 /**
  * Exposes Kubernetes/Docker-friendly health probes:
  *
- * - `GET /api/health`  — full dependency check (DB, Redis, storage, memory).
+ * - `GET /api/health`  — full dependency check (DB, Redis, memory).
  * - `GET /api/health/live`  — liveness: is the process up at all?
  * - `GET /api/health/ready` — readiness: are critical deps reachable?
  */
@@ -29,7 +28,6 @@ export class HealthController {
     private readonly health: HealthCheckService,
     private readonly database: DatabaseHealthIndicator,
     private readonly redis: RedisHealthIndicator,
-    private readonly storage: StorageHealthIndicator,
     private readonly memory: MemoryHealthIndicator,
   ) {}
 
@@ -40,7 +38,6 @@ export class HealthController {
     return this.health.check([
       () => this.database.isHealthy(),
       () => this.redis.isHealthy(),
-      () => this.storage.isHealthy(),
       () =>
         this.memory.checkHeap('memory_heap', HealthController.MAX_HEAP_BYTES),
     ]);
