@@ -22,8 +22,7 @@
     "prisma:migrate": "prisma migrate deploy",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "db:seed": "prisma db seed",
-    "prepare": "husky || true"
+    "db:seed": "prisma db seed"
   },
   "prisma": {
     "schema": "apps/api/prisma/schema.prisma",

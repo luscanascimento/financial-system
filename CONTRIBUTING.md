@@ -8,7 +8,7 @@ Thanks for contributing! This guide covers our branching model, commit conventio
 
 ## Prerequisites
 
-Node `>= 20.19`, pnpm `>= 10`, Docker. Run `pnpm install` first — this installs the Husky git hooks (commitlint runs on every commit). See the [Development Guide](./docs/development.md) for full setup.
+Node `>= 20.19`, pnpm `>= 10`, Docker. Run `pnpm install` first. See the [Development Guide](./docs/development.md) for full setup.
 
 ---
 
@@ -32,7 +32,7 @@ Keep branches focused and short-lived. Rebase on `main` to stay current.
 
 ## Conventional Commits
 
-Commit messages **must** follow the [Conventional Commits](https://www.conventionalcommits.org/) spec. This is enforced by **commitlint + Husky** — non-conforming messages are rejected.
+Commit messages **must** follow the [Conventional Commits](https://www.conventionalcommits.org/) spec. There is no commit hook enforcing it — reviewers do.
 
 ```
 <type>(<scope>): <short summary>
@@ -107,9 +107,9 @@ BREAKING CHANGE: `amountCents` replaces `amount`.
 - Linting via ESLint — run `pnpm lint`. This includes `@nx/enforce-module-boundaries`.
 - **Respect the [module boundary matrix](./docs/architecture.md#8-module-boundary-matrix).** A boundary violation fails the build:
   - `scope:web` → web + shared · `scope:api` → api + shared · `scope:shared` → shared only
-  - `type:ui` → ui + util + types · `type:types` → types only · `type:util` → util + types
+  - `type:types` → types only · `type:util` → util + types
 - **Backend:** follow [Clean Architecture](./docs/architecture.md#3-backend-clean-architecture) — keep the domain framework-free, depend on repository interfaces, isolate Prisma behind repositories. See [ADR-0002](./docs/adr/0002-clean-architecture-backend.md).
-- **Frontend:** standalone components, lazy routes, Signals for local state, RxJS for streams, Reactive Forms; reusable presentational components go in `@financehub/ui`.
+- **Frontend:** standalone components, lazy routes, Signals for local state, RxJS for streams, Reactive Forms.
 - Share contracts through `@financehub/shared-types` — never duplicate API shapes.
 
 ---
@@ -117,7 +117,6 @@ BREAKING CHANGE: `amountCents` replaces `amount`.
 ## Testing expectations
 
 - **Unit tests (Vitest)** for new/changed logic across all projects.
-- **API integration tests (Supertest)** for new or changed controllers/endpoints.
 - **Playwright E2E** (`apps/web-e2e`) for critical user flows.
 - Unit-test services against **fake repositories** (no DB), enabled by the interface design.
 - Run `npx nx affected -t test` before opening a PR.
