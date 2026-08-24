@@ -12,10 +12,10 @@
 |------|---------|-------|
 | **Node.js** | `>= 20.19` | Use a version manager (nvm/fnm/volta). |
 | **pnpm** | `>= 10` | Package manager. `corepack enable` is the easiest way to get it. |
-| **Docker + Docker Compose** | Recent | Runs the full stack (web, api, postgres, redis, minio). |
-| **Git** | Recent | Conventional Commits are enforced via Husky + commitlint. |
+| **Docker + Docker Compose** | Recent | Runs the full stack (web, api, postgres, redis). |
+| **Git** | Recent | Commit messages follow Conventional Commits (by convention — no hook enforces it). |
 
-You do **not** need Postgres, Redis, or MinIO installed locally — Docker Compose provides them.
+You do **not** need Postgres or Redis installed locally — Docker Compose provides them.
 
 ---
 
@@ -26,25 +26,24 @@ You do **not** need Postgres, Redis, or MinIO installed locally — Docker Compo
 git clone <repo-url> financehub
 cd financehub
 
-# 2. Install dependencies (also installs Husky git hooks via "prepare")
+# 2. Install dependencies
 pnpm install
 
 # 3. Create your local env file
 cp .env.example .env
-# Edit .env and set the JWT secrets (JWT_ACCESS_SECRET, JWT_REFRESH_SECRET) to random values
+# Edit .env and set JWT_ACCESS_SECRET and ENCRYPTION_KEY to random values
 
 # 4. Start the entire stack
 docker compose up
 ```
 
-With `docker compose up` running, everything is wired for you — no manual database or bucket setup required.
+With `docker compose up` running, everything is wired for you — no manual database setup required.
 
 | Service | URL |
 |---------|-----|
 | Web app (nginx) | http://localhost:8080 |
 | API | http://localhost:3000/api |
 | Swagger / OpenAPI | http://localhost:3000/api/docs |
-| MinIO console | http://localhost:9001 |
 
 See the [Deployment guide](./deployment.md) for the full Compose topology and port map.
 
@@ -62,14 +61,14 @@ npx nx serve api
 npx nx serve web
 ```
 
-When running dev servers outside Docker, keep the infrastructure containers (postgres, redis, minio) up so the API has its dependencies.
+When running dev servers outside Docker, keep the infrastructure containers (postgres, redis) up so the API has its dependencies.
 
 Typical loop:
 
 1. Create a feature branch (see [Contributing](../CONTRIBUTING.md#branching-model)).
 2. Make changes; run the relevant dev server(s).
 3. Run `npx nx affected -t lint test typecheck` before committing.
-4. Commit using **Conventional Commits** (commitlint will reject non-conforming messages).
+4. Commit using **Conventional Commits**.
 5. Open a PR; CI runs lint, test, build, and typecheck.
 
 ---
@@ -130,7 +129,7 @@ Checklist when adding a module:
 5. Add the **controller** with routes, guards, and `@nestjs/swagger` decorators (keep OpenAPI accurate).
 6. Register everything in `<feature>.module.ts` using DI provider tokens (bind interface → implementation).
 7. If the module needs schema, add a **Prisma migration**.
-8. Add **unit tests** (Vitest) for services against a fake repository, and **integration tests** (Supertest) for controllers.
+8. Add **unit tests** (Vitest) for the service against a fake repository.
 9. Respect the [module boundary matrix](./architecture.md#8-module-boundary-matrix): `scope:api` may only depend on api + shared.
 
 ---
@@ -155,11 +154,10 @@ Checklist when adding a feature:
 
 1. Create a **lazy route** and register it in the app routes.
 2. Add **route guards** for protected areas.
-3. Build **container (smart) components** for pages; compose **presentational** components from `@financehub/ui`.
+3. Build **container (smart) components** for pages and keep presentational components alongside their feature.
 4. Use **Signals** for local state and **RxJS** for async streams; use **Reactive Forms** for inputs.
 5. Reuse cross-cutting UX: loading/skeleton states, toasts, dark mode, responsive layout.
 6. Share contracts via `@financehub/shared-types` — never redefine API shapes locally.
-7. Reusable, business-logic-free components belong in `packages/ui` (`type:ui`), not in the app.
 8. Add **unit tests** (Vitest) and, for critical flows, **Playwright E2E** in `apps/web-e2e`.
 
 ---
@@ -169,15 +167,13 @@ Checklist when adding a feature:
 | Layer | Tool | Location / command |
 |-------|------|--------------------|
 | Unit (all projects) | **Vitest** | `npx nx test <project>` / `pnpm test` |
-| API integration | **Supertest** | Co-located with the API project's tests |
 | Web E2E | **Playwright** | `apps/web-e2e` → `npx nx e2e web-e2e` |
 
 Guidelines:
 
 - **Services** are unit-tested against **in-memory fake repositories** (no DB) — enabled by the repository-interface design.
-- **Controllers** get integration coverage with **Supertest** hitting the Nest app.
 - Prefer `npx nx affected -t test` locally to only run what changed.
-- Keep tests deterministic; avoid real network/OAuth calls in unit tests (use strategy/adapter fakes).
+- Keep tests deterministic; no real network calls in unit tests.
 
 ---
 
@@ -186,11 +182,9 @@ Guidelines:
 | Symptom | Likely cause / fix |
 |---------|--------------------|
 | `pnpm install` uses a globally wrong pnpm | Run `corepack enable`; ensure pnpm `>= 10` and Node `>= 20.19`. |
-| API can't reach DB/Redis when running `nx serve api` | Make sure the infra containers are up (`docker compose up postgres redis minio`) and `.env` points to them. |
+| API can't reach DB/Redis when running `nx serve api` | Make sure the infra containers are up (`docker compose up postgres redis`) and `.env` points to them. |
 | `CORS` errors from the web app | Ensure `CORS_ORIGIN` matches the web origin (default `http://localhost:8080`). |
-| Commit rejected by commitlint | Message must follow [Conventional Commits](../CONTRIBUTING.md#conventional-commits). |
 | ESLint fails with a module-boundary error | You crossed the [boundary matrix](./architecture.md#8-module-boundary-matrix). Move the code or fix the import. |
 | Stale Nx results | Reset the cache: `npx nx reset`. |
-| Ports already in use | Another process holds `8080/3000/5432/6379/9000/9001`; stop it or remap in `docker compose`. |
-| MinIO bucket / uploads failing | Confirm `MINIO_*` env vars and that the `financehub` bucket exists (Compose provisions it). |
+| Ports already in use | Another process holds `8080/3000/5432/6379`; stop it or remap in `docker compose`. |
 | Migration drift | Re-apply Prisma migrations (see [deployment](./deployment.md#running-migrations)). |

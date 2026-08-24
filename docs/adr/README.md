@@ -10,7 +10,7 @@ This directory records the significant architectural decisions made on FinanceHu
 |---|-------|--------|---------|
 | [0001](./0001-nx-monorepo.md) | Nx integrated monorepo | Accepted | Nx 23 integrated monorepo with pnpm workspaces and tag-enforced module boundaries, over polyrepo/Turborepo/Lerna. |
 | [0002](./0002-clean-architecture-backend.md) | Clean Architecture for the NestJS backend | Accepted | Inward dependency rule, framework-free domain, and repository interfaces that isolate Prisma. |
-| [0003](./0003-authentication-strategy.md) | Authentication strategy | Accepted | JWT access + rotating refresh tokens (reuse detection), Argon2, Google/GitHub OAuth, TOTP MFA. |
+| [0003](./0003-authentication-strategy.md) | Authentication strategy | Accepted | JWT access + opaque rotating refresh tokens in PostgreSQL (reuse detection), Argon2, TOTP MFA enforced at login. No OAuth. |
 
 ## How we use ADRs
 

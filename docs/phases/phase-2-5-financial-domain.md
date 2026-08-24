@@ -60,8 +60,10 @@ unit tests** passing, lint clean.
 ## Deferred (Phase 7 candidates)
 
 - **OAuth** (Google/GitHub) sign-in.
-- **Login MFA gating** — MFA can be set up/enabled/verified; the login endpoint
-  does not yet branch into an MFA challenge.
-- **Attachments** (receipts to MinIO) and **audit logs**.
+- ~~**Login MFA gating**~~ — delivered 2026-08-24: `POST /auth/login` now returns
+  an `mfaRequired` challenge for MFA-enabled accounts and only
+  `POST /auth/mfa/challenge` issues a session.
+- **Attachments** (receipts to object storage) and **audit logs**. No object
+  storage is provisioned — pick one when attachments are actually built.
 - **Integration tests** (Supertest) and **Playwright e2e** — deferred until the
   local Docker stack is verified end-to-end (see the Phase 0 Docker note).

@@ -32,20 +32,11 @@ graph TD
   subgraph Data["Data & Infrastructure"]
     PG[("PostgreSQL 16<br/>:5432")]
     Redis[("Redis 7<br/>:6379")]
-    MinIO[("MinIO (S3)<br/>:9000 / :9001")]
-  end
-
-  subgraph External["External Identity"]
-    Google["Google OAuth"]
-    GitHub["GitHub OAuth"]
   end
 
   Web -->|"HTTPS / JSON<br/>Bearer access token"| API
   API -->|"Prisma 6"| PG
-  API -->|"ioredis (cache, token state)"| Redis
-  API -->|"S3 API (attachments)"| MinIO
-  API -->|"OAuth 2.0"| Google
-  API -->|"OAuth 2.0"| GitHub
+  API -->|"ioredis (throttling)"| Redis
 
   Web -. "shared contracts" .-> Shared
   API -. "shared contracts" .-> Shared
@@ -63,7 +54,8 @@ graph TD
 | `apps/web-e2e` | Web E2E | Playwright | `scope:web,type:e2e` | — |
 | `packages/shared-types` | Shared types | Pure TypeScript types + enums | `type:types,scope:shared` | `@financehub/shared-types` |
 | `packages/shared-utils` | Shared utils | Pure TypeScript utilities | `type:util,scope:shared` | `@financehub/shared-utils` |
-| `packages/ui` | UI library | Angular presentational component library | `type:ui,scope:web` | `@financehub/ui` |
+| `apps/mcp` | MCP server | Model Context Protocol server over the API | `scope:mcp,type:app` | — |
+| `apps/mobile` | Mobile app | Flutter client consuming the same API | — | — |
 
 **Tooling baseline:** Nx 23 (integrated), pnpm workspaces, TypeScript 5.9 in `strict` mode. Node `>= 20.19`, pnpm `>= 10`.
 
@@ -73,11 +65,9 @@ graph TD
 graph LR
   web["apps/web"]
   api["apps/api"]
-  ui["packages/ui"]
   types["packages/shared-types"]
   utils["packages/shared-utils"]
 
-  web --> ui
   web --> types
   web --> utils
   ui --> utils
@@ -112,7 +102,6 @@ graph TD
     HTTP["HTTP / Express / Swagger"]
     PrismaC["Prisma Client"]
     RedisC["Redis / ioredis"]
-    S3["MinIO / S3"]
   end
 
   Controller["Controller"] --> Service["Service (Use-Cases)"]
@@ -124,7 +113,6 @@ graph TD
   HTTP --> Controller
   PrismaC --> RepoImpl
   RedisC --> RepoImpl
-  S3 --> RepoImpl
 
   style Domain fill:#1f6feb,stroke:#0b4bb3,color:#fff
   style RepoIface fill:#238636,stroke:#116329,color:#fff
@@ -141,15 +129,14 @@ graph TD
 
 ### 3.4 Design patterns in use
 
-| Pattern | Where / why |
-|---------|-------------|
-| **Repository** | Persistence isolated behind domain interfaces; hides Prisma. |
-| **Dependency Injection** | NestJS providers wire interfaces to implementations; enables testing. |
-| **Factory** | Constructing domain entities and value objects with invariants enforced. |
-| **Strategy** | Interchangeable algorithms, e.g. OAuth providers, report aggregations, notification channels. |
-| **Adapter** | Wrapping third-party clients (Redis, MinIO/S3, OAuth SDKs) behind app-facing ports. |
-| **Builder** | Assembling complex query/report/DTO structures step by step. |
-| **CQRS** | Applied where beneficial — read-heavy Reports/Dashboard separate query paths from command paths. |
+The patterns actually present in `apps/api`. Nothing more elaborate is in use — no command/query bus, no strategy registries, no builders.
+
+| Pattern | Where |
+|---------|-------|
+| **Repository** | One `*.repository.ts` per feature is the only code that touches Prisma models for that feature (e.g. `TransactionsRepository`, `RefreshTokenRepository`). |
+| **Mapper** | `*.mapper.ts` converts Prisma rows to the shared API DTOs (`toAuthUser`, `toTransactionDto`, …), so column renames stop at the repository boundary. |
+| **Dependency Injection** | NestJS constructor injection throughout; services are unit-tested by handing them plain object fakes (see `auth.service.spec.ts`). |
+| **Transaction script** | Each service method is a straight-line use-case (validate → read → mutate → map). There is no rich domain model, and that is deliberate: the rules are small enough that a procedure per use-case is the cheapest thing that stays readable. |
 
 ---
 
@@ -188,16 +175,13 @@ Pipeline order for an authenticated request:
 
 ---
 
-## 5. Data, caching, and storage strategy
+## 5. Data and caching strategy
 
 | Concern | Technology | Notes |
 |---------|-----------|-------|
 | Primary datastore | **PostgreSQL 16** via **Prisma 6** | Relational source of truth; access only through repositories. `DATABASE_URL` configures the connection. |
-| Caching / ephemeral state | **Redis 7** via **ioredis** | Read-through caching for hot queries; also backs refresh-token/session state and throttling counters. `REDIS_HOST` / `REDIS_PORT`. |
-| Object storage | **MinIO** (S3-compatible) | Transaction attachments and other binary blobs. `MINIO_*` variables; bucket `financehub`. |
+| Caching / ephemeral state | **Redis 7** via **ioredis** | Backs `@nestjs/throttler` rate-limit counters so limits hold across API instances. `REDIS_HOST` / `REDIS_PORT`. Refresh-token state lives in PostgreSQL, not here — see [ADR-0003](./adr/0003-authentication-strategy.md). |
 | Schema & migrations | **Prisma Migrate** | Migrations are versioned in the repo and applied on deploy (see [deployment](./deployment.md#running-migrations)). |
-
-**Caching principle:** the cache is an outer-layer adapter injected into repositories/services — never referenced from the domain. Cache invalidation is owned by the write use-case that mutates the underlying data.
 
 ---
 
@@ -205,13 +189,13 @@ Pipeline order for an authenticated request:
 
 | Concern | Implementation |
 |---------|----------------|
-| **Authentication** | JWT access tokens + rotating refresh tokens, **Argon2** password hashing, OAuth (Google + GitHub), **TOTP MFA**. See [ADR-0003](./adr/0003-authentication-strategy.md). |
+| **Authentication** | JWT access tokens + rotating refresh tokens, **Argon2** password hashing, **TOTP MFA** enforced at login. Social login is *not* implemented. See [ADR-0003](./adr/0003-authentication-strategy.md). |
 | **Validation** | `class-validator` + `class-transformer` DTOs at the controller boundary; `zod` validates environment variables at bootstrap. |
 | **Error handling** | Centralized exception filters produce a consistent error envelope; domain errors are mapped to appropriate HTTP status codes. |
 | **Logging** | Structured request/response and error logging as an interceptor/middleware layer (correlatable per request). |
 | **Rate limiting** | `@nestjs/throttler` globally, tunable via `THROTTLE_TTL` / `THROTTLE_LIMIT`. |
 | **Security headers / transport** | `helmet` + `compression`; CORS locked to `CORS_ORIGIN`. |
-| **Health & readiness** | `@nestjs/terminus` health checks (DB, Redis, storage). See [deployment](./deployment.md#health-checks--readiness). |
+| **Health & readiness** | `@nestjs/terminus` health checks (DB, Redis, heap). See [deployment](./deployment.md#health-checks--readiness). |
 | **API documentation** | Swagger / OpenAPI served at `/api/docs`. |
 
 ---
@@ -224,10 +208,9 @@ Pipeline order for an authenticated request:
 - **HTTP** — functional **interceptors** for auth (attach access token, refresh on 401) and error handling (surface toasts, normalize failures).
 - **State** — **Signals** for local/component state; **RxJS** for async streams and event composition.
 - **Forms** — **Reactive Forms** with typed form models.
-- **UI** — **Angular Material** + SCSS; presentational components live in `@financehub/ui`.
+- **UI** — **Angular Material** + SCSS.
 - **UX** — dark mode, responsive design, loading/skeleton states, toast notifications, consistent error handling.
 
-Presentational components (`packages/ui`) are kept free of business logic and data access; feature containers in `apps/web` compose them with services and state.
 
 ---
 
@@ -240,7 +223,7 @@ Boundaries are enforced by the `@nx/enforce-module-boundaries` ESLint rule. A vi
 | `scope:web` | web + shared |
 | `scope:api` | api + shared |
 | `scope:shared` | shared only |
-| `type:ui` | ui + util + types |
+| `scope:mcp` | mcp + shared |
 | `type:types` | types only |
 | `type:util` | util + types |
 
@@ -248,7 +231,6 @@ Boundaries are enforced by the `@nx/enforce-module-boundaries` ESLint rule. A vi
 
 - `apps/web` and `apps/api` can never import each other — they communicate only over HTTP and via shared contracts.
 - `packages/shared-types` is a leaf: it depends on nothing, so it is safe to import everywhere.
-- `packages/ui` may use utilities and types but never app code, keeping the component library reusable.
 
 See [ADR-0001](./adr/0001-nx-monorepo.md) for why the monorepo and these boundaries were chosen.
 

@@ -23,7 +23,7 @@ Adopt an **Nx 23 integrated monorepo** with **pnpm workspaces** and **TypeScript
 - Apps live under `apps/` (`web`, `api`, `web-e2e`); shared libraries under `packages/` (`shared-types`, `shared-utils`, `ui`).
 - Projects carry **Nx tags** (`scope:*`, `type:*`) and the **`@nx/enforce-module-boundaries`** ESLint rule enforces the [boundary matrix](../architecture.md#8-module-boundary-matrix) at lint/CI time.
 - Nx's project graph, caching, and `affected` commands drive local and CI builds; `nx graph` visualizes dependencies.
-- Shared code is imported via TS path aliases (`@financehub/shared-types`, `@financehub/shared-utils`, `@financehub/ui`) — no internal publishing.
+- Shared code is imported via TS path aliases (`@financehub/shared-types`, `@financehub/shared-utils`) — no internal publishing.
 
 ## Consequences
 
