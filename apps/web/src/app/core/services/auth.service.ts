@@ -56,6 +56,16 @@ export class AuthService {
       .pipe(tap((res) => this.acceptSession(res)));
   }
 
+  /**
+   * Answers the challenge returned by {@link login} when the account has MFA
+   * enabled. Only this call yields a session.
+   */
+  verifyMfaChallenge(mfaToken: string, code: string): Observable<AuthResult> {
+    return this.http
+      .post<AuthResult>(`${this.baseUrl}/mfa/challenge`, { mfaToken, code })
+      .pipe(tap((res) => this.acceptSession(res)));
+  }
+
   register(payload: RegisterPayload): Observable<AuthResult> {
     return this.http
       .post<AuthResult>(`${this.baseUrl}/register`, payload)

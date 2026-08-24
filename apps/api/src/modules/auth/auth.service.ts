@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { User } from '@prisma/client';
+import type { MfaChallenge } from '@financehub/shared-types';
 
 import { toAuthUser } from '../users/mappers/user.mapper';
 import { UsersRepository } from '../users/users.repository';
@@ -43,7 +44,15 @@ export class AuthService {
     return this.issueSession(user, context);
   }
 
-  async login(dto: LoginDto, context: SessionContext): Promise<IssuedSession> {
+  /**
+   * Verifies credentials. When the account has MFA enabled no session is
+   * issued — the caller gets a short-lived challenge it must answer at
+   * `POST /auth/mfa/challenge` before any token is handed out.
+   */
+  async login(
+    dto: LoginDto,
+    context: SessionContext,
+  ): Promise<IssuedSession | MfaChallenge> {
     const user = await this.users.findByEmail(dto.email);
     // Constant-ish response regardless of which check fails (avoid user enumeration).
     if (!user?.passwordHash) {
@@ -53,7 +62,12 @@ export class AuthService {
     if (!valid) {
       throw new UnauthorizedException('Invalid email or password');
     }
-    // NOTE: MFA challenge handling is added in the MFA slice.
+    if (user.mfaEnabled) {
+      return {
+        mfaRequired: true,
+        mfaToken: await this.tokens.signMfaToken(user.id),
+      };
+    }
     return this.issueSession(user, context);
   }
 
@@ -80,6 +94,21 @@ export class AuthService {
       refreshToken: issued.rawToken,
       refreshExpiresAt: issued.expiresAt,
     };
+  }
+
+  /**
+   * Issues a session for an already-authenticated user id. Used to complete a
+   * login after the second factor has been verified.
+   */
+  async issueSessionFor(
+    userId: string,
+    context: SessionContext,
+  ): Promise<IssuedSession> {
+    const user = await this.users.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('Invalid MFA token');
+    }
+    return this.issueSession(user, context);
   }
 
   async logout(rawRefreshToken: string | undefined): Promise<void> {

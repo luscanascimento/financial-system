@@ -1,6 +1,6 @@
 import { UnauthorizedException } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
-import type { JwtService } from '@nestjs/jwt';
+import { JwtService } from '@nestjs/jwt';
 import type { RefreshToken } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -24,6 +24,15 @@ function makeToken(overrides: Partial<RefreshToken> = {}): RefreshToken {
   };
 }
 
+const jwtConfig = {
+  get: vi.fn().mockReturnValue({
+    accessSecret: 'access-secret',
+    accessTtl: '15m',
+    refreshSecret: 'refresh-secret',
+    refreshTtl: '7d',
+  }),
+} as unknown as ConfigService<AppConfiguration, true>;
+
 function setup() {
   const jwt = { signAsync: vi.fn().mockResolvedValue('access.jwt') } as unknown as JwtService;
   const repo = {
@@ -33,16 +42,7 @@ function setup() {
     revoke: vi.fn(),
     revokeFamily: vi.fn(),
   } as unknown as RefreshTokenRepository;
-  const config = {
-    get: vi.fn().mockReturnValue({
-      accessSecret: 'access-secret',
-      accessTtl: '15m',
-      refreshSecret: 'refresh-secret',
-      refreshTtl: '7d',
-    }),
-  } as unknown as ConfigService<AppConfiguration, true>;
-
-  return { service: new TokenService(jwt, repo, config), repo };
+  return { service: new TokenService(jwt, repo, jwtConfig), repo };
 }
 
 describe('TokenService', () => {
@@ -93,5 +93,36 @@ describe('TokenService', () => {
       /expired/,
     );
     expect(ctx.repo.revoke).toHaveBeenCalled();
+  });
+
+  describe('MFA challenge tokens', () => {
+    /** Real JwtService — the round-trip is the point of these assertions. */
+    const service = new TokenService(
+      new JwtService({}),
+      {} as RefreshTokenRepository,
+      jwtConfig,
+    );
+
+    it('round-trips the user id', async () => {
+      const token = await service.signMfaToken('user-1');
+      await expect(service.verifyMfaToken(token)).resolves.toBe('user-1');
+    });
+
+    it('refuses a token that is not an MFA challenge', async () => {
+      const accessToken = await service.signAccessToken({
+        id: 'user-1',
+        email: 'jane@financehub.dev',
+        role: 'USER',
+      });
+      await expect(service.verifyMfaToken(accessToken)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+    });
+
+    it('refuses a garbage token', async () => {
+      await expect(service.verifyMfaToken('nope')).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+    });
   });
 });

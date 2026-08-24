@@ -33,6 +33,15 @@ export interface RotationResult {
 }
 
 /**
+ * `typ` claim marking a pending-MFA token. It is signed with the access-token
+ * secret but is *not* a session credential — {@link JwtStrategy} refuses it.
+ */
+export const MFA_TOKEN_TYPE = 'mfa';
+
+/** How long the client has to answer the MFA challenge. */
+const MFA_TOKEN_TTL = '5m';
+
+/**
  * Issues and validates auth tokens.
  *
  * - **Access tokens** are short-lived signed JWTs (stateless).
@@ -62,6 +71,34 @@ export class TokenService {
       secret: this.jwtConfig.accessSecret,
       expiresIn: this.accessTtlSeconds,
     });
+  }
+
+  /**
+   * Signs the short-lived token handed to the client when login stops at the
+   * MFA gate. It carries no role/email claims and only unlocks
+   * `POST /auth/mfa/challenge`.
+   */
+  signMfaToken(userId: string): Promise<string> {
+    return this.jwtService.signAsync(
+      { sub: userId, typ: MFA_TOKEN_TYPE },
+      { secret: this.jwtConfig.accessSecret, expiresIn: MFA_TOKEN_TTL },
+    );
+  }
+
+  /** Validates an MFA challenge token and returns the user it was minted for. */
+  async verifyMfaToken(token: string): Promise<string> {
+    let payload: { sub?: string; typ?: string };
+    try {
+      payload = await this.jwtService.verifyAsync(token, {
+        secret: this.jwtConfig.accessSecret,
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid or expired MFA token');
+    }
+    if (payload.typ !== MFA_TOKEN_TYPE || !payload.sub) {
+      throw new UnauthorizedException('Invalid or expired MFA token');
+    }
+    return payload.sub;
   }
 
   get accessTtlSeconds(): number {

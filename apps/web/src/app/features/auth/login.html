@@ -11,6 +11,26 @@
       <h1>Sign in</h1>
 
       <form class="fh-auth__form" [formGroup]="form" (ngSubmit)="submit()">
+        @if (mfaToken()) {
+        <p>
+          Enter the 6-digit code from your authenticator app, or one of your
+          recovery codes.
+        </p>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Authentication code</mat-label>
+          <input
+            matInput
+            type="text"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            [formControl]="code"
+          />
+          @if (code.hasError('required')) {
+          <mat-error>A code is required</mat-error>
+          }
+        </mat-form-field>
+        } @else {
         <mat-form-field appearance="outline">
           <mat-label>Email</mat-label>
           <input
@@ -38,6 +58,7 @@
           <mat-error>Password is required</mat-error>
           }
         </mat-form-field>
+        }
 
         <div class="fh-auth__actions">
           <button
@@ -46,7 +67,7 @@
             type="submit"
             [disabled]="submitting()"
           >
-            Sign in
+            {{ mfaToken() ? 'Verify code' : 'Sign in' }}
           </button>
         </div>
       </form>

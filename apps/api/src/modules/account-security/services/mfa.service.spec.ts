@@ -8,6 +8,7 @@ import type { ConfigService } from '@nestjs/config';
 
 import { CryptoService } from '../../../common/crypto/crypto.service';
 import type { AppConfiguration } from '../../../config/configuration';
+import type { TokenService } from '../../auth/services/token.service';
 import type { UsersRepository } from '../../users/users.repository';
 import type { MfaRecoveryCodeRepository } from '../repositories/mfa-recovery-code.repository';
 import { MfaService } from './mfa.service';
@@ -63,10 +64,15 @@ function setup() {
     deleteByUser: vi.fn().mockResolvedValue(undefined),
   } as unknown as MfaRecoveryCodeRepository;
 
+  const tokens = {
+    verifyMfaToken: vi.fn(),
+  } as unknown as TokenService;
+
   return {
-    service: new MfaService(users, recoveryCodes, crypto, mfaConfig),
+    service: new MfaService(users, recoveryCodes, crypto, tokens, mfaConfig),
     users,
     recoveryCodes,
+    tokens,
   };
 }
 
@@ -200,6 +206,34 @@ describe('MfaService', () => {
       await expect(ctx.service.verify(baseUser.id, '000000')).resolves.toBe(
         false,
       );
+    });
+  });
+
+  describe('consumeLoginChallenge', () => {
+    it('returns the user id when the challenge token and code are valid', async () => {
+      vi.mocked(ctx.tokens.verifyMfaToken).mockResolvedValue(baseUser.id);
+      vi.mocked(ctx.users.findById).mockResolvedValue({
+        ...baseUser,
+        mfaEnabled: true,
+        mfaSecret: FIXED_SECRET,
+      });
+
+      await expect(
+        ctx.service.consumeLoginChallenge('mfa.jwt', currentCode(FIXED_SECRET)),
+      ).resolves.toBe(baseUser.id);
+    });
+
+    it('rejects a wrong second factor', async () => {
+      vi.mocked(ctx.tokens.verifyMfaToken).mockResolvedValue(baseUser.id);
+      vi.mocked(ctx.users.findById).mockResolvedValue({
+        ...baseUser,
+        mfaEnabled: true,
+        mfaSecret: FIXED_SECRET,
+      });
+
+      await expect(
+        ctx.service.consumeLoginChallenge('mfa.jwt', '000000'),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
     });
   });
 

@@ -6,6 +6,7 @@ import type { UsersRepository } from '../users/users.repository';
 import { AuthService } from './auth.service';
 import type { PasswordService } from './services/password.service';
 import type { TokenService } from './services/token.service';
+import type { IssuedSession } from './types/session';
 
 const demoUser: User = {
   id: '11111111-1111-1111-1111-111111111111',
@@ -41,6 +42,7 @@ function setup() {
       record: { id: 'rt-1' },
     }),
     rotateRefreshToken: vi.fn(),
+    signMfaToken: vi.fn().mockResolvedValue('mfa.jwt'),
     accessTtlSeconds: 900,
   } as unknown as TokenService;
 
@@ -99,13 +101,53 @@ describe('AuthService', () => {
       vi.mocked(ctx.users.findByEmail).mockResolvedValue(demoUser);
       vi.mocked(ctx.passwords.verify).mockResolvedValue(true);
 
-      const session = await ctx.service.login(
+      const result = await ctx.service.login(
         { email: demoUser.email, password: 'password123' },
         {},
       );
 
+      expect('mfaRequired' in result).toBe(false);
+      const session = result as IssuedSession;
       expect(session.result.user.id).toBe(demoUser.id);
       expect(session.result.expiresIn).toBe(900);
+    });
+
+    // Regression: MFA used to be enrollable but never enforced — login handed
+    // out a full session even with mfaEnabled, making the second factor a lie.
+    it('withholds the session and returns a challenge when MFA is enabled', async () => {
+      vi.mocked(ctx.users.findByEmail).mockResolvedValue({
+        ...demoUser,
+        mfaEnabled: true,
+        mfaSecret: 'encrypted-secret',
+      });
+      vi.mocked(ctx.passwords.verify).mockResolvedValue(true);
+
+      const result = await ctx.service.login(
+        { email: demoUser.email, password: 'password123' },
+        {},
+      );
+
+      expect(result).toEqual({ mfaRequired: true, mfaToken: 'mfa.jwt' });
+      expect(ctx.tokens.issueRefreshToken).not.toHaveBeenCalled();
+      expect(ctx.tokens.signAccessToken).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('issueSessionFor', () => {
+    it('issues a session for a user that cleared the MFA challenge', async () => {
+      vi.mocked(ctx.users.findById).mockResolvedValue(demoUser);
+
+      const session = await ctx.service.issueSessionFor(demoUser.id, {});
+
+      expect(session.result.accessToken).toBe('access.jwt');
+      expect(session.refreshToken).toBe('raw-refresh');
+    });
+
+    it('rejects an unknown user id', async () => {
+      vi.mocked(ctx.users.findById).mockResolvedValue(null);
+      await expect(
+        ctx.service.issueSessionFor('missing', {}),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
     });
   });
 

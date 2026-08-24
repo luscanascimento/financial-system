@@ -11,6 +11,7 @@ import type { User } from '@prisma/client';
 
 import { CryptoService } from '../../../common/crypto/crypto.service';
 import type { AppConfiguration } from '../../../config/configuration';
+import { TokenService } from '../../auth/services/token.service';
 import { UsersRepository } from '../../users/users.repository';
 import { MfaRecoveryCodeRepository } from '../repositories/mfa-recovery-code.repository';
 import { generateSecret, totpUri, verifyTotp } from './totp';
@@ -44,6 +45,7 @@ export class MfaService {
     private readonly users: UsersRepository,
     private readonly recoveryCodes: MfaRecoveryCodeRepository,
     private readonly crypto: CryptoService,
+    private readonly tokens: TokenService,
     configService: ConfigService<AppConfiguration, true>,
   ) {
     this.issuer = configService.get('mfa.issuer', { infer: true });
@@ -114,6 +116,19 @@ export class MfaService {
     }
     await this.recoveryCodes.deleteByUser(user.id);
     await this.users.update(user.id, { mfaEnabled: false, mfaSecret: null });
+  }
+
+  /**
+   * Completes a login that stopped at the MFA gate: validates the short-lived
+   * challenge token minted by `POST /auth/login`, then the second factor.
+   * Returns the user id so the caller can issue the session.
+   */
+  async consumeLoginChallenge(mfaToken: string, code: string): Promise<string> {
+    const userId = await this.tokens.verifyMfaToken(mfaToken);
+    if (!(await this.verify(userId, code))) {
+      throw new UnauthorizedException('Invalid MFA code');
+    }
+    return userId;
   }
 
   /**

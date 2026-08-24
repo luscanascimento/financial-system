@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import type { AuthResult } from '@financehub/shared-types';
+import type { AuthResult, LoginResponse } from '@financehub/shared-types';
 import type { Request, Response } from 'express';
 
 import { AuthService } from './auth.service';
@@ -46,14 +46,21 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('login')
-  @ApiOperation({ summary: 'Authenticate and receive an access token' })
+  @ApiOperation({
+    summary:
+      'Authenticate and receive an access token, or an MFA challenge when the account requires a second factor',
+  })
   async login(
     @Body() dto: LoginDto,
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
-  ): Promise<AuthResult> {
-    const session = await this.auth.login(dto, this.contextOf(request));
-    return this.completeSession(session, response);
+  ): Promise<LoginResponse> {
+    const result = await this.auth.login(dto, this.contextOf(request));
+    // No cookie, no tokens until the second factor is answered.
+    if ('mfaRequired' in result) {
+      return result;
+    }
+    return this.completeSession(result, response);
   }
 
   @Public()
