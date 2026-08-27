@@ -89,15 +89,6 @@ export class CryptoService {
     );
   }
 
-  /**
-   * Decrypts `value` if it is an encrypted envelope, otherwise returns it as-is.
-   * Lets callers read columns that may still hold legacy plaintext during a
-   * gradual migration.
-   */
-  decryptOrPassthrough(value: string): string {
-    return this.isEncrypted(value) ? this.decrypt(value) : value;
-  }
-
   /** Constant-time comparison of two UTF-8 strings (avoids timing oracles). */
   static safeEquals(a: string, b: string): boolean {
     const bufferA = Buffer.from(a, 'utf8');

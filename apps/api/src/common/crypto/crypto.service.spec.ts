@@ -52,10 +52,8 @@ describe('CryptoService', () => {
     expect(() => other.decrypt(envelope)).toThrow();
   });
 
-  it('passes through legacy plaintext values', () => {
+  it('rejects a plaintext value as an envelope', () => {
     expect(crypto.isEncrypted('GEZDGNBVGY3TQOJQ')).toBe(false);
-    expect(crypto.decryptOrPassthrough('GEZDGNBVGY3TQOJQ')).toBe(
-      'GEZDGNBVGY3TQOJQ',
-    );
+    expect(() => crypto.decrypt('GEZDGNBVGY3TQOJQ')).toThrow();
   });
 });

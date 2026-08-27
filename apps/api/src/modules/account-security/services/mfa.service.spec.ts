@@ -29,6 +29,9 @@ const mfaConfig = {
 // TOTP code deterministically for the enable/verify assertions.
 const FIXED_SECRET = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ'; // "12345678901234567890"
 
+/** How the secret is actually stored: AES-256-GCM at rest, never plaintext. */
+const ENCRYPTED_SECRET = crypto.encrypt(FIXED_SECRET);
+
 const baseUser: User = {
   id: '11111111-1111-1111-1111-111111111111',
   email: 'jane@financehub.dev',
@@ -122,7 +125,7 @@ describe('MfaService', () => {
     it('activates MFA and mints 10 recovery codes for a valid code', async () => {
       vi.mocked(ctx.users.findById).mockResolvedValue({
         ...baseUser,
-        mfaSecret: FIXED_SECRET,
+        mfaSecret: ENCRYPTED_SECRET,
       });
 
       const result = await ctx.service.enable(
@@ -146,7 +149,7 @@ describe('MfaService', () => {
     it('rejects an invalid code', async () => {
       vi.mocked(ctx.users.findById).mockResolvedValue({
         ...baseUser,
-        mfaSecret: FIXED_SECRET,
+        mfaSecret: ENCRYPTED_SECRET,
       });
       await expect(
         ctx.service.enable(baseUser.id, '000000'),
@@ -166,7 +169,7 @@ describe('MfaService', () => {
       vi.mocked(ctx.users.findById).mockResolvedValue({
         ...baseUser,
         mfaEnabled: true,
-        mfaSecret: FIXED_SECRET,
+        mfaSecret: ENCRYPTED_SECRET,
       });
 
       await expect(
@@ -179,7 +182,7 @@ describe('MfaService', () => {
       vi.mocked(ctx.users.findById).mockResolvedValue({
         ...baseUser,
         mfaEnabled: true,
-        mfaSecret: FIXED_SECRET,
+        mfaSecret: ENCRYPTED_SECRET,
       });
       vi.mocked(ctx.recoveryCodes.findUnusedByUser).mockResolvedValue([
         {
@@ -201,11 +204,26 @@ describe('MfaService', () => {
       vi.mocked(ctx.users.findById).mockResolvedValue({
         ...baseUser,
         mfaEnabled: true,
-        mfaSecret: FIXED_SECRET,
+        mfaSecret: ENCRYPTED_SECRET,
       });
       await expect(ctx.service.verify(baseUser.id, '000000')).resolves.toBe(
         false,
       );
+    });
+
+    it('refuses to use a stored secret that is not an encrypted envelope', async () => {
+      // Secrets are only ever written encrypted, so a plaintext column value
+      // means corruption or tampering. It must fail loudly rather than be
+      // accepted as a second factor.
+      vi.mocked(ctx.users.findById).mockResolvedValue({
+        ...baseUser,
+        mfaEnabled: true,
+        mfaSecret: FIXED_SECRET,
+      });
+
+      await expect(
+        ctx.service.verify(baseUser.id, currentCode(FIXED_SECRET)),
+      ).rejects.toThrow();
     });
   });
 
@@ -215,7 +233,7 @@ describe('MfaService', () => {
       vi.mocked(ctx.users.findById).mockResolvedValue({
         ...baseUser,
         mfaEnabled: true,
-        mfaSecret: FIXED_SECRET,
+        mfaSecret: ENCRYPTED_SECRET,
       });
 
       await expect(
@@ -228,7 +246,7 @@ describe('MfaService', () => {
       vi.mocked(ctx.users.findById).mockResolvedValue({
         ...baseUser,
         mfaEnabled: true,
-        mfaSecret: FIXED_SECRET,
+        mfaSecret: ENCRYPTED_SECRET,
       });
 
       await expect(
@@ -242,7 +260,7 @@ describe('MfaService', () => {
       vi.mocked(ctx.users.findById).mockResolvedValue({
         ...baseUser,
         mfaEnabled: true,
-        mfaSecret: FIXED_SECRET,
+        mfaSecret: ENCRYPTED_SECRET,
       });
 
       await ctx.service.disable(baseUser.id, currentCode(FIXED_SECRET));
@@ -258,7 +276,7 @@ describe('MfaService', () => {
       vi.mocked(ctx.users.findById).mockResolvedValue({
         ...baseUser,
         mfaEnabled: true,
-        mfaSecret: FIXED_SECRET,
+        mfaSecret: ENCRYPTED_SECRET,
       });
       await expect(
         ctx.service.disable(baseUser.id, '000000'),

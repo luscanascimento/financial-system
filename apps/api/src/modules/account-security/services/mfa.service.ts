@@ -161,15 +161,15 @@ export class MfaService {
   }
 
   /**
-   * Reads the user's TOTP secret, decrypting the at-rest envelope. Values
-   * predating encryption are returned as-is (transparent legacy fallback), so
-   * existing enrolments keep working and are re-encrypted on the next setup.
+   * Reads the user's TOTP secret from its at-rest envelope. Secrets are only
+   * ever written encrypted, so a value that fails to decrypt is corrupt or
+   * tampered with and must not be trusted as a factor.
    */
   private readSecret(user: User): string | null {
     if (!user.mfaSecret) {
       return null;
     }
-    return this.crypto.decryptOrPassthrough(user.mfaSecret);
+    return this.crypto.decrypt(user.mfaSecret);
   }
 
   /** Generates a human-friendly recovery code (10 hex chars, e.g. `a1b2c3d4e5`). */
