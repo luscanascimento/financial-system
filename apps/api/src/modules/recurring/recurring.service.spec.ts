@@ -106,8 +106,10 @@ describe('RecurringService', () => {
 
   describe('runDue', () => {
     it('generates a transaction and advances the schedule by one month', async () => {
-      const now = new Date('2026-07-20T00:00:00.000Z');
-      vi.mocked(ctx.recurring.findDue).mockResolvedValue([template()]);
+      const now = new Date('2026-07-01T00:00:00.000Z');
+      vi.mocked(ctx.recurring.findDue).mockResolvedValue([
+        template({ nextRunDate: new Date('2026-06-15T00:00:00.000Z') }),
+      ]);
 
       const result = await ctx.service.runDue(USER_ID, now);
 
@@ -123,8 +125,51 @@ describe('RecurringService', () => {
       expect(result).toEqual({ processed: 1, generated: 1, failed: 0 });
     });
 
+    it('catches up every missed occurrence, not just the first', async () => {
+      // Nobody triggered a run for four months: all four occurrences must be
+      // booked and the schedule must land in the future, otherwise the template
+      // stays permanently overdue.
+      const now = new Date('2026-10-01T00:00:00.000Z');
+      vi.mocked(ctx.recurring.findDue).mockResolvedValue([
+        template({ nextRunDate: new Date('2026-06-15T00:00:00.000Z') }),
+      ]);
+
+      const result = await ctx.service.runDue(USER_ID, now);
+
+      expect(result).toEqual({ processed: 1, generated: 4, failed: 0 });
+      expect(
+        vi
+          .mocked(ctx.transactions.create)
+          .mock.calls.map(([, dto]) => dto.date),
+      ).toEqual([
+        '2026-06-15T00:00:00.000Z',
+        '2026-07-15T00:00:00.000Z',
+        '2026-08-15T00:00:00.000Z',
+        '2026-09-15T00:00:00.000Z',
+      ]);
+      const updates = vi.mocked(ctx.recurring.update).mock.calls;
+      const [, last] = updates[updates.length - 1];
+      expect((last.nextRunDate as Date).toISOString()).toBe(
+        '2026-10-15T00:00:00.000Z',
+      );
+    });
+
+    it('stops the catch-up at endDate', async () => {
+      const now = new Date('2026-10-01T00:00:00.000Z');
+      vi.mocked(ctx.recurring.findDue).mockResolvedValue([
+        template({
+          nextRunDate: new Date('2026-06-15T00:00:00.000Z'),
+          endDate: new Date('2026-08-01T00:00:00.000Z'),
+        }),
+      ]);
+
+      const result = await ctx.service.runDue(USER_ID, now);
+
+      expect(result).toEqual({ processed: 1, generated: 2, failed: 0 });
+    });
+
     it('advances a weekly template by interval weeks', async () => {
-      const now = new Date('2026-07-20T00:00:00.000Z');
+      const now = new Date('2026-07-10T00:00:00.000Z');
       vi.mocked(ctx.recurring.findDue).mockResolvedValue([
         template({
           frequency: 'WEEKLY',
@@ -149,10 +194,16 @@ describe('RecurringService', () => {
     });
 
     it('isolates a failing template so the rest of the batch still runs', async () => {
-      const now = new Date('2026-07-20T00:00:00.000Z');
+      const now = new Date('2026-07-01T00:00:00.000Z');
       vi.mocked(ctx.recurring.findDue).mockResolvedValue([
-        template({ id: 'bad' }),
-        template({ id: 'good' }),
+        template({
+          id: 'bad',
+          nextRunDate: new Date('2026-06-15T00:00:00.000Z'),
+        }),
+        template({
+          id: 'good',
+          nextRunDate: new Date('2026-06-15T00:00:00.000Z'),
+        }),
       ]);
       vi.mocked(ctx.transactions.create)
         .mockRejectedValueOnce(new Error('insufficient funds'))

@@ -29,6 +29,13 @@ export interface RunDueResult {
  */
 @Injectable()
 export class RecurringService {
+  /**
+   * Cap on occurrences generated per template per pass. Bounds the blast radius
+   * of a very old daily template (or a clock jump) to one batch instead of
+   * thousands of rows; the remainder is caught up on the next run.
+   */
+  private static readonly MAX_CATCHUP_RUNS = 60;
+
   private readonly logger = new Logger(RecurringService.name);
 
   constructor(
@@ -99,6 +106,11 @@ export class RecurringService {
    * Generates transactions for every active template whose `nextRunDate` has
    * passed (and that hasn't ended), then advances each template's schedule and
    * stamps `lastRunAt`. Optionally scoped to a single user.
+   *
+   * There is no scheduler in the repo: this is driven by
+   * `POST /recurring-transactions/run` (or a cron calling it), so a template
+   * can be overdue by several periods and every missed occurrence is generated
+   * in one pass.
    */
   async runDue(userId?: string, now: Date = new Date()): Promise<RunDueResult> {
     const due = await this.recurring.findDue(now, userId);
@@ -109,26 +121,34 @@ export class RecurringService {
     // skipped so it can never abort the batch or block every later template.
     for (const template of due) {
       try {
-        await this.transactions.create(template.userId, {
-          accountId: template.accountId,
-          categoryId: template.categoryId ?? undefined,
-          type: template.type,
-          amountMinor: template.amountMinor,
-          description: template.description,
-          date: template.nextRunDate.toISOString(),
-        });
+        let next = template.nextRunDate;
+        let runs = 0;
+        while (
+          next <= now &&
+          (template.endDate === null || next <= template.endDate) &&
+          runs < RecurringService.MAX_CATCHUP_RUNS
+        ) {
+          await this.transactions.create(template.userId, {
+            accountId: template.accountId,
+            categoryId: template.categoryId ?? undefined,
+            type: template.type,
+            amountMinor: template.amountMinor,
+            description: template.description,
+            date: next.toISOString(),
+          });
 
-        // Only advance the schedule after the transaction is committed, so a
-        // failure here re-attempts the same run rather than skipping it.
-        await this.recurring.update(template.id, {
-          lastRunAt: now,
-          nextRunDate: this.advance(
-            template.nextRunDate,
-            template.frequency,
-            template.interval,
-          ),
-        });
-        generated += 1;
+          next = this.advance(next, template.frequency, template.interval);
+
+          // Only advance the schedule after the transaction is committed, so a
+          // failure here re-attempts the same run rather than skipping it —
+          // including mid-catch-up, where the earlier runs stay committed.
+          await this.recurring.update(template.id, {
+            lastRunAt: now,
+            nextRunDate: next,
+          });
+          generated += 1;
+          runs += 1;
+        }
       } catch (error) {
         failed += 1;
         this.logger.error(
