@@ -233,9 +233,3 @@ Boundaries are enforced by the `@nx/enforce-module-boundaries` ESLint rule. A vi
 - `packages/shared-types` is a leaf: it depends on nothing, so it is safe to import everywhere.
 
 See [ADR-0001](./adr/0001-nx-monorepo.md) for why the monorepo and these boundaries were chosen.
-
----
-
-## 9. Diagrams (future)
-
-Entity-relationship and detailed sequence diagrams will live under [`docs/diagrams/`](./diagrams/) and are scheduled for a later roadmap phase (see [ADR index](./adr/README.md) and the project roadmap).

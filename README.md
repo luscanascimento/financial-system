@@ -72,7 +72,9 @@ Elsewhere in the domain:
 - **Money is never a float.** Every amount is an integer count of minor units
   (`Int` in Prisma, `amountMinor`/`balanceMinor` on the wire), converted only at
   the display edge by `@financehub/shared-utils` — and mirrored by the same
-  contract in the Angular pipe and the Flutter client.
+  contract in the Angular pipe and the Flutter client. The minor-unit exponent
+  comes from ISO 4217 via ICU, not from a hardcoded `100`, so JPY (0 digits) and
+  KWD (3) round-trip correctly.
 - **Balances can't drift.** Every mutation that touches a balance — create,
   update, delete, transfer, goal contribution — writes the row and adjusts the
   account inside one `prisma.$transaction`, so a two-sided transfer is
@@ -80,7 +82,22 @@ Elsewhere in the domain:
 - **The recurrence engine isolates failure.** `runDue()` processes each template
   in its own try/catch and only advances `nextRunDate` _after_ the generated
   transaction commits: one bad template is logged and skipped instead of
-  aborting the batch, and its missed run is retried rather than lost.
+  aborting the batch, and its missed run is retried rather than lost. A template
+  overdue by several periods is caught up in one pass (capped per run).
+
+**What is _not_ there yet, so nobody has to grep for it:**
+
+- **No scheduler.** `runDue()` is triggered by
+  `POST /recurring-transactions/run`; there is no `@Cron`, worker or queue in
+  the repo. Recurring transactions are generated when something calls that
+  endpoint (an external cron works), not on their own.
+- **Multi-currency is partial.** Amounts carry their currency and its correct
+  exponent, and net worth is reported per currency, but there is no FX
+  conversion: the dashboard's headline `totalBalanceMinor` covers only the
+  user's dominant currency (`ReportsService.getOverview`). Rates and cross-
+  currency totals are not implemented.
+- **No test coverage on `apps/mcp`.** The MCP server is typed and linted but has
+  no unit tests yet.
 
 ---
 
@@ -185,9 +202,11 @@ Use `npx nx affected -t test` to run only what changed.
 
 ## 🧪 Testing
 
-- **Unit** — Vitest across every TypeScript project (NestJS uses SWC for
-  decorator metadata). Services are tested against mocked repositories; the
-  security primitives (TOTP, crypto) are tested against published RFC vectors.
+- **Unit** — Vitest on the API, the Angular app and `packages/shared-utils`
+  (NestJS uses SWC for decorator metadata); `apps/mcp` and
+  `packages/shared-types` have none. Services are tested against mocked
+  repositories; the security primitives (TOTP, crypto) are tested against
+  published RFC vectors.
 - **Mobile unit** — `flutter_test` over the Dart client's pure logic: money
   conversion/formatting, enum wire round-trips, model deserialization and API
   error mapping.
@@ -232,13 +251,16 @@ API reference is auto-generated (Swagger/OpenAPI) at `/api/docs`.
 | **0** | Foundation — monorepo, infra, Docker, CI, dashboard skeleton                                 | ✅ Done   |
 | **1** | Auth & Users — register/login, JWT+refresh, Argon2, MFA (TOTP), email verify, password reset | ✅ Done   |
 | **2** | Accounts & Categories                                                                        | ✅ Done   |
-| **3** | Transactions, transfers, installments, recurring                                             | ✅ Done   |
+| **3** | Transactions, transfers, installments, recurring¹                                            | ✅ Done   |
 | **4** | Budgets & Goals                                                                              | ✅ Done   |
 | **5** | Reports & Dashboards (KPIs, charts, cash flow)                                               | ✅ Done   |
 | **6** | Search/filtering/pagination ✅ · notifications — · audit logs —                              | ◐ Partial |
 | **7** | Flutter mobile client ([`apps/mobile`](./apps/mobile/README.md)) consuming the same API      | ✅ Done   |
 | **8** | MCP server ([`apps/mcp`](./apps/mcp/README.md)) — FinanceHub as an AI assistant tool         | ✅ Done   |
 | **9** | OAuth (Google/GitHub), attachments, notifications, audit logs & deployment                   | 📋 Next   |
+
+¹ “Recurring” is the domain + generation logic; nothing in the repo _schedules_
+it — see [Engineering highlights](#-engineering-highlights).
 
 “Notifications” in Phase 6 means server-side delivery (email/push/in-app feed),
 which is **not built**. The web app's
