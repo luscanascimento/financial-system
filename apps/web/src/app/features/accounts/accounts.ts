@@ -105,7 +105,7 @@ export class Accounts {
       name: account.name,
       type: account.type,
       currency: account.currency,
-      balanceMajor: minorToMajor(account.balanceMinor),
+      balanceMajor: minorToMajor(account.balanceMinor, account.currency),
       institution: account.institution ?? '',
     });
     this.formOpen.set(true);
@@ -149,7 +149,7 @@ export class Accounts {
           name: raw.name,
           type: raw.type,
           currency: raw.currency,
-          initialBalanceMinor: majorToMinor(raw.balanceMajor),
+          initialBalanceMinor: majorToMinor(raw.balanceMajor, raw.currency),
           institution: raw.institution || null,
         })
         .subscribe(done);

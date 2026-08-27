@@ -158,7 +158,8 @@ class _AccountFormState extends ConsumerState<_AccountForm> {
   late final _balance = TextEditingController(
     text: widget.account == null
         ? ''
-        : Money.minorToMajor(widget.account!.initialBalanceMinor)
+        : Money.minorToMajor(
+                widget.account!.initialBalanceMinor, widget.account!.currency)
             .toStringAsFixed(2),
   );
   late final _currency =
@@ -198,8 +199,9 @@ class _AccountFormState extends ConsumerState<_AccountForm> {
           'name': _name.text.trim(),
           'type': _type.wire,
           'currency': _currency.text.trim().toUpperCase(),
-          'initialBalanceMinor':
-              Money.majorToMinor(double.parse(_balance.text.trim())),
+          'initialBalanceMinor': Money.majorToMinor(
+              double.parse(_balance.text.trim()),
+              _currency.text.trim().toUpperCase()),
           if (institution != null) 'institution': institution,
         });
       }

@@ -235,7 +235,10 @@ export class Transactions {
         accountId: raw.accountId,
         categoryId: raw.categoryId || null,
         type: raw.type,
-        amountMinor: majorToMinor(raw.amountMajor),
+        amountMinor: majorToMinor(
+          raw.amountMajor,
+          this.accountCurrency(raw.accountId),
+        ),
         description: raw.description,
         date: new Date(raw.date).toISOString(),
         installmentTotal,

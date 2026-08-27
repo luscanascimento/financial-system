@@ -116,7 +116,7 @@ export class Goals {
     this.editingId.set(goal.id);
     this.form.reset({
       name: goal.name,
-      targetAmountMajor: minorToMajor(goal.targetAmountMinor),
+      targetAmountMajor: minorToMajor(goal.targetAmountMinor, goal.currency),
       currency: goal.currency,
       targetDate: goal.targetDate ? goal.targetDate.slice(0, 10) : '',
       accountId: goal.accountId ?? '',
@@ -139,7 +139,7 @@ export class Goals {
 
     const payload = {
       name: raw.name,
-      targetAmountMinor: majorToMinor(raw.targetAmountMajor),
+      targetAmountMinor: majorToMinor(raw.targetAmountMajor, raw.currency),
       currency: raw.currency,
       targetDate: raw.targetDate || null,
       accountId: raw.accountId || null,
@@ -181,7 +181,7 @@ export class Goals {
 
     this.api
       .contribute(goal.id, {
-        amountMinor: majorToMinor(raw.amountMajor),
+        amountMinor: majorToMinor(raw.amountMajor, goal.currency),
         date: new Date().toISOString(),
         note: raw.note || null,
       })

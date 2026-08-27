@@ -12,6 +12,18 @@ void main() {
       expect(Money.majorToMinor(0.1 + 0.2), 30);
     });
 
+    test('uses the ISO 4217 exponent, not a hardcoded 100', () {
+      // JPY has no minor unit: 1000 minor units is ¥1,000, not ¥10.
+      expect(Money.minorToMajor(1000, 'JPY'), 1000);
+      expect(Money.majorToMinor(1000, 'JPY'), 1000);
+      expect(Money.format(1000, 'JPY', locale: 'en_US'), contains('1,000'));
+
+      // KWD has three: 1234 minor units is 1.234 dinar.
+      expect(Money.minorToMajor(1234, 'KWD'), closeTo(1.234, 1e-9));
+      expect(Money.majorToMinor(1.234, 'KWD'), 1234);
+      expect(Money.format(1234, 'KWD', locale: 'en_US'), contains('1.234'));
+    });
+
     test('formats minor units as currency', () {
       expect(Money.format(4599, 'USD', locale: 'en_US'), r'$45.99');
     });

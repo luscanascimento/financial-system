@@ -121,7 +121,10 @@ export function registerTools(server: McpServer, client: FinanceClient): void {
         const account = await client.createAccount({
           name,
           type,
-          initialBalanceMinor: majorToMinor(initialBalanceMajor),
+          initialBalanceMinor: majorToMinor(
+            initialBalanceMajor,
+            currency ?? 'USD',
+          ),
           currency: currency ?? 'USD',
           institution,
         });

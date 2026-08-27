@@ -200,11 +200,17 @@ class _TransactionFormState extends ConsumerState<_TransactionForm> {
     });
     final repo = ref.read(transactionsRepositoryProvider);
     final notes = _notes.text.trim().isEmpty ? null : _notes.text.trim();
+    // The amount is typed in the *account's* currency, whose minor-unit
+    // exponent is not always 2 (JPY has 0).
+    final account = (ref.read(accountsProvider).valueOrNull ?? const <Account>[])
+        .cast<Account?>()
+        .firstWhere((a) => a?.id == _accountId, orElse: () => null);
     try {
       await repo.create({
         'accountId': _accountId,
         'type': _type.wire,
-        'amountMinor': Money.majorToMinor(double.parse(_amount.text.trim())),
+        'amountMinor': Money.majorToMinor(
+            double.parse(_amount.text.trim()), account?.currency ?? 'USD'),
         'description': _description.text.trim(),
         'date': Dates.toIso(_date),
         if (_categoryId != null) 'categoryId': _categoryId,

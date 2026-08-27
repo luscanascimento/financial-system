@@ -405,7 +405,8 @@ class _ContributionFormState extends ConsumerState<_ContributionForm> {
     final note = _note.text.trim().isEmpty ? null : _note.text.trim();
     try {
       await ref.read(goalsRepositoryProvider).addContribution(widget.goal.id, {
-        'amountMinor': Money.majorToMinor(double.parse(_amount.text.trim())),
+        'amountMinor': Money.majorToMinor(
+            double.parse(_amount.text.trim()), widget.goal.currency),
         'date': Dates.toIso(_date),
         if (note != null) 'note': note,
       });
@@ -532,8 +533,8 @@ class _GoalFormState extends ConsumerState<_GoalForm> {
     try {
       await ref.read(goalsRepositoryProvider).create({
         'name': _name.text.trim(),
-        'targetAmountMinor':
-            Money.majorToMinor(double.parse(_target.text.trim())),
+        'targetAmountMinor': Money.majorToMinor(double.parse(_target.text.trim()),
+            _currency.text.trim().toUpperCase()),
         'currency': _currency.text.trim().toUpperCase(),
         if (_targetDate != null) 'targetDate': Dates.toIso(_targetDate!),
         if (_accountId != null) 'accountId': _accountId,
