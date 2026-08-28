@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import type {
   RecurrenceFrequency,
   RecurringTransaction as RecurringDto,
@@ -6,6 +6,7 @@ import type {
 import { addDays, addMonths } from '@financehub/shared-utils';
 import type { RecurringTransaction } from '@prisma/client';
 
+import { RedisService } from '../../infrastructure/redis/redis.service';
 import { AccountsRepository } from '../accounts/accounts.repository';
 import { TransactionsService } from '../transactions/transactions.service';
 import { CreateRecurringDto } from './dto/create-recurring.dto';
@@ -42,6 +43,7 @@ export class RecurringService {
     private readonly recurring: RecurringRepository,
     private readonly transactions: TransactionsService,
     private readonly accounts: AccountsRepository,
+    @Optional() private readonly redis?: RedisService,
   ) {}
 
   async list(userId: string): Promise<RecurringDto[]> {
@@ -113,53 +115,73 @@ export class RecurringService {
    * in one pass.
    */
   async runDue(userId?: string, now: Date = new Date()): Promise<RunDueResult> {
-    const due = await this.recurring.findDue(now, userId);
-    let generated = 0;
-    let failed = 0;
+    const lockKey = userId
+      ? `recurring:run_due:${userId}`
+      : 'recurring:run_due:global';
+    const releaseLock = this.redis
+      ? await this.redis.acquireLock(lockKey, 30)
+      : null;
 
-    // Each template is processed independently: a failure on one is logged and
-    // skipped so it can never abort the batch or block every later template.
-    for (const template of due) {
-      try {
-        let next = template.nextRunDate;
-        let runs = 0;
-        while (
-          next <= now &&
-          (template.endDate === null || next <= template.endDate) &&
-          runs < RecurringService.MAX_CATCHUP_RUNS
-        ) {
-          await this.transactions.create(template.userId, {
-            accountId: template.accountId,
-            categoryId: template.categoryId ?? undefined,
-            type: template.type,
-            amountMinor: template.amountMinor,
-            description: template.description,
-            date: next.toISOString(),
-          });
-
-          next = this.advance(next, template.frequency, template.interval);
-
-          // Only advance the schedule after the transaction is committed, so a
-          // failure here re-attempts the same run rather than skipping it —
-          // including mid-catch-up, where the earlier runs stay committed.
-          await this.recurring.update(template.id, {
-            lastRunAt: now,
-            nextRunDate: next,
-          });
-          generated += 1;
-          runs += 1;
-        }
-      } catch (error) {
-        failed += 1;
-        this.logger.error(
-          `Failed to process recurring template ${template.id} for user ${template.userId}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-      }
+    if (this.redis && !releaseLock) {
+      this.logger.warn(
+        `runDue for ${lockKey} is already executing; skipping concurrent run`,
+      );
+      return { processed: 0, generated: 0, failed: 0 };
     }
 
-    return { processed: due.length, generated, failed };
+    try {
+      const due = await this.recurring.findDue(now, userId);
+      let generated = 0;
+      let failed = 0;
+
+      // Each template is processed independently: a failure on one is logged and
+      // skipped so it can never abort the batch or block every later template.
+      for (const template of due) {
+        try {
+          let next = template.nextRunDate;
+          let runs = 0;
+          while (
+            next <= now &&
+            (template.endDate === null || next <= template.endDate) &&
+            runs < RecurringService.MAX_CATCHUP_RUNS
+          ) {
+            await this.transactions.create(template.userId, {
+              accountId: template.accountId,
+              categoryId: template.categoryId ?? undefined,
+              type: template.type,
+              amountMinor: template.amountMinor,
+              description: template.description,
+              date: next.toISOString(),
+            });
+
+            next = this.advance(next, template.frequency, template.interval);
+
+            // Only advance the schedule after the transaction is committed, so a
+            // failure here re-attempts the same run rather than skipping it —
+            // including mid-catch-up, where the earlier runs stay committed.
+            await this.recurring.update(template.id, {
+              lastRunAt: now,
+              nextRunDate: next,
+            });
+            generated += 1;
+            runs += 1;
+          }
+        } catch (error) {
+          failed += 1;
+          this.logger.error(
+            `Failed to process recurring template ${template.id} for user ${template.userId}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
+      }
+
+      return { processed: due.length, generated, failed };
+    } finally {
+      if (releaseLock) {
+        await releaseLock();
+      }
+    }
   }
 
   /** Advances a date by `interval` periods of the given frequency (UTC). */

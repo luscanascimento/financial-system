@@ -64,4 +64,40 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   async del(key: string): Promise<void> {
     await this.client.del(key);
   }
+
+  /**
+   * Acquires a distributed lock with automatic TTL expiration.
+   * Returns an unlock function if acquired, or null if lock is held.
+   */
+  async acquireLock(
+    key: string,
+    ttlSeconds = 30,
+  ): Promise<(() => Promise<void>) | null> {
+    const lockKey = `lock:${key}`;
+    const token = Math.random().toString(36).substring(2);
+    const result = await this.client.set(
+      lockKey,
+      token,
+      'EX',
+      ttlSeconds,
+      'NX',
+    );
+    if (result !== 'OK') {
+      return null;
+    }
+    return async () => {
+      const script = `
+        if redis.call("get", KEYS[1]) == ARGV[1] then
+          return redis.call("del", KEYS[1])
+        else
+          return 0
+        end
+      `;
+      try {
+        await this.client.eval(script, 1, lockKey, token);
+      } catch (err) {
+        this.logger.warn(`Failed to release lock for ${lockKey}: ${err}`);
+      }
+    };
+  }
 }

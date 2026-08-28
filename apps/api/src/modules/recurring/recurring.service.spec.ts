@@ -216,5 +216,41 @@ describe('RecurringService', () => {
       // The failing template's schedule is NOT advanced (it retries next run).
       expect(ctx.recurring.update).toHaveBeenCalledTimes(1);
     });
+
+    it('skips execution when distributed lock cannot be acquired (concurrency protection)', async () => {
+      const unlock = vi.fn().mockResolvedValue(undefined);
+      const redis = {
+        acquireLock: vi.fn().mockResolvedValue(null),
+      } as any;
+      const service = new RecurringService(
+        ctx.recurring,
+        ctx.transactions,
+        ctx.accounts,
+        redis,
+      );
+
+      const result = await service.runDue(USER_ID);
+      expect(result).toEqual({ processed: 0, generated: 0, failed: 0 });
+      expect(ctx.recurring.findDue).not.toHaveBeenCalled();
+    });
+
+    it('acquires and releases distributed lock when Redis is present', async () => {
+      const unlock = vi.fn().mockResolvedValue(undefined);
+      const redis = {
+        acquireLock: vi.fn().mockResolvedValue(unlock),
+      } as any;
+      const service = new RecurringService(
+        ctx.recurring,
+        ctx.transactions,
+        ctx.accounts,
+        redis,
+      );
+      vi.mocked(ctx.recurring.findDue).mockResolvedValue([]);
+
+      const result = await service.runDue(USER_ID);
+      expect(result).toEqual({ processed: 0, generated: 0, failed: 0 });
+      expect(redis.acquireLock).toHaveBeenCalled();
+      expect(unlock).toHaveBeenCalledTimes(1);
+    });
   });
 });

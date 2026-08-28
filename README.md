@@ -202,11 +202,10 @@ Use `npx nx affected -t test` to run only what changed.
 
 ## 🧪 Testing
 
-- **Unit** — Vitest on the API, the Angular app and `packages/shared-utils`
-  (NestJS uses SWC for decorator metadata); `apps/mcp` and
-  `packages/shared-types` have none. Services are tested against mocked
-  repositories; the security primitives (TOTP, crypto) are tested against
-  published RFC vectors.
+- **Unit** — Vitest on the API, the Angular app, `apps/mcp` (MCP client & tools),
+  and `packages/shared-utils` (NestJS uses SWC for decorator metadata).
+  Services are tested against mocked repositories with distributed concurrency locks;
+  the security primitives (TOTP, crypto) are tested against published RFC vectors.
 - **Mobile unit** — `flutter_test` over the Dart client's pure logic: money
   conversion/formatting, enum wire round-trips, model deserialization and API
   error mapping.
